@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import logging
 import os
-import tempfile
 from pathlib import Path
 
 from .logging import log_event
@@ -21,7 +20,7 @@ free-form, such as "coffee filters" or "Laptop charger: office desk". Supply
 exactly one non-empty line; do not add a newline. You can append directly
 without reading first."""
 
-_OVERWRITE_DESCRIPTION = """Replace the complete inventory atomically.
+_OVERWRITE_DESCRIPTION = """Replace the complete inventory.
 The inventory is UTF-8 plain text with one free-form item or note per line.
 Preserve its established line-oriented format. For example:
 "coffee filters\nLaptop charger: office desk\n". Each line is conventional,
@@ -69,26 +68,14 @@ class InventoryStore:
     def overwrite(self, text: str) -> None:
         encoded = self._validate_inventory(text)
         previous = self.read()
-        temporary_path: Path | None = None
         try:
             self._path.parent.mkdir(parents=True, exist_ok=True)
-            descriptor, name = tempfile.mkstemp(
-                prefix=f".{self._path.name}.", dir=self._path.parent
-            )
-            temporary_path = Path(name)
-            with os.fdopen(descriptor, "wb") as temporary:
-                temporary.write(encoded)
-                temporary.flush()
-                os.fsync(temporary.fileno())
-            os.replace(temporary_path, self._path)
+            with self._path.open("wb") as inventory:
+                inventory.write(encoded)
+                inventory.flush()
+                os.fsync(inventory.fileno())
         except OSError as error:
             raise ToolExecutionError("Unable to overwrite inventory.") from error
-        finally:
-            if temporary_path is not None:
-                try:
-                    temporary_path.unlink()
-                except FileNotFoundError:
-                    pass
         log_event(
             self._logger,
             "inventory_overwritten",

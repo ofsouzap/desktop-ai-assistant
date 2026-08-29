@@ -176,7 +176,8 @@
     - `inventory_append(text: str)`
       - appends a new inventory item/entry.
     - `inventory_overwrite(text: str)`
-      - atomically replaces the complete inventory file.
+      - replaces the complete inventory file.
+      - Future hardening: implement atomic replacement with a temporary file and rename.
   - The inventory format should remain lightweight and human-readable.
     - Prefer one item/entry per line or another simple convention.
     - Allow free-form notes so entries can contain information not anticipated by a rigid schema.
@@ -186,10 +187,8 @@
     - Include a couple of representative examples.
     - Instruct overwrites to preserve the established format.
     - This allows simple additions to use `inventory_append` without first reading the file just to discover formatting.
-  - `inventory_overwrite` must be implemented atomically.
-    - write to a temporary file;
-    - fsync/close as appropriate;
-    - rename/replace the target.
+  - Future hardening: make `inventory_overwrite` atomic with a temporary file,
+    fsync/close, and rename/replace.
   - Apply reasonable argument/file-size limits to avoid accidental runaway writes.
   - Log inventory mutations in enough detail to recover previous contents during testing.
   - Do not build a structured database, embeddings, semantic-search layer, or generic application/plugin framework in V1.

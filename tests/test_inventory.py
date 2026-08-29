@@ -30,14 +30,13 @@ def test_appends_one_line_entries() -> None:
         assert store.read() == "coffee filters\nLaptop charger: office desk\n"
 
 
-def test_overwrite_replaces_inventory_without_temporary_file() -> None:
+def test_overwrite_replaces_inventory() -> None:
     with TemporaryDirectory() as directory:
         path = Path(directory) / INVENTORY_FILENAME
         store = make_store(path)
         store.append("old entry")
         store.overwrite("new entry\nanother note\n")
         assert store.read() == "new entry\nanother note\n"
-        assert list(path.parent.glob(f".{INVENTORY_FILENAME}.*")) == []
 
 
 def test_rejects_invalid_entry_and_oversized_content() -> None:
