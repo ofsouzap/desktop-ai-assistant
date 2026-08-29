@@ -29,7 +29,7 @@ def test_dispatches_valid_call() -> None:
 def test_rejects_invalid_arguments() -> None:
     result = make_registry().dispatch(ToolCall("1", "repeat", {"text": 1}))
     assert result.is_error
-    assert "must be str" in result.content
+    assert result.content == "Argument text must be str."
 
 
 def test_rejects_unregistered_tool() -> None:
