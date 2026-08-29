@@ -1,0 +1,27 @@
+[build-system]
+requires = ["setuptools>=69"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "desktop-ai-assistant"
+version = "0.1.0"
+description = "A constrained, typed desktop assistant foundation."
+readme = "README.md"
+requires-python = ">=3.11"
+license = { file = "LICENSE" }
+authors = [{ name = "desktop-ai-assistant contributors" }]
+
+[project.optional-dependencies]
+dev = ["mypy==2.3.1", "pytest==9.1.1"]
+
+[project.scripts]
+desktop-ai-assistant = "desktop_ai_assistant.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.mypy]
+files = ["src", "tests"]
+strict = true
+warn_unreachable = true
+show_error_codes = true
