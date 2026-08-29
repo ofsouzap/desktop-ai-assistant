@@ -87,6 +87,11 @@ class CodexModelBackend:
     def next_response(
         self, messages: Sequence[Message], tools: Sequence[ToolSchema]
     ) -> ModelResponse:
+        """Run an isolated turn with the complete application-owned transcript.
+
+        Fresh ephemeral Codex threads keep provider conversation state from
+        bypassing the orchestrator's validated tool-result sequence.
+        """
         thread = self._client.thread_start(
             approval_mode=ApprovalMode.deny_all,
             cwd=self._workspace.name,
