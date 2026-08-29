@@ -11,6 +11,8 @@ from .types import ToolArguments
 
 INVENTORY_FILENAME = "inventory.txt"
 
+_READ_DESCRIPTION = "Read the complete inventory text."
+
 _APPEND_DESCRIPTION = """Append one inventory entry.
 The inventory is UTF-8 plain text with one item or note per line. Each line is
 free-form, such as "coffee filters" or "Laptop charger: office desk". Supply
@@ -21,7 +23,8 @@ _OVERWRITE_DESCRIPTION = """Replace the complete inventory.
 The inventory is UTF-8 plain text with one free-form item or note per line.
 Preserve its established line-oriented format. For example:
 "coffee filters\nLaptop charger: office desk\n". Each line is conventional,
-but its text is free-form."""
+but its text is free-form. Read the current inventory first, then overwrite only
+to make a small change while preserving its contents."""
 
 
 class InventoryStore:
@@ -59,6 +62,7 @@ class InventoryStore:
         )
 
     def overwrite(self, text: str) -> None:
+        # Future hardening: require the current content for a compare-and-swap overwrite.
         previous = self.read()
         try:
             self._path.parent.mkdir(parents=True, exist_ok=True)
@@ -82,10 +86,8 @@ class InventoryStore:
 def register_inventory_tools(registry: ToolRegistry, store: InventoryStore) -> None:
     """Register the complete model-facing inventory capability."""
 
-    @registry.register("inventory_read", "Read the complete inventory text.")
+    @registry.register("inventory_read", _READ_DESCRIPTION)
     def inventory_read(arguments: ToolArguments) -> str:
-        if arguments:
-            raise ToolExecutionError("inventory_read does not accept arguments.")
         return store.read()
 
     @registry.register(

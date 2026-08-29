@@ -186,9 +186,13 @@
     - State which pieces are conventional and which are free-form.
     - Include a couple of representative examples.
     - Instruct overwrites to preserve the established format.
+    - Instruct callers to read before overwriting and make only a small change.
     - This allows simple additions to use `inventory_append` without first reading the file just to discover formatting.
   - Future hardening: make `inventory_overwrite` atomic with a temporary file,
     fsync/close, and rename/replace.
+  - Future hardening: make `inventory_overwrite` compare-and-swap by requiring
+    callers to provide the current complete inventory. This ensures a prior read
+    and helps guard against concurrent changes.
   - Future hardening: apply reasonable argument/file-size limits to avoid
     accidental runaway writes.
   - Log inventory mutations in enough detail to recover previous contents during testing.

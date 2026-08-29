@@ -61,8 +61,9 @@ def test_tool_error_is_returned_to_model() -> None:
 def test_scripted_model_exercises_inventory_flow() -> None:
     with TemporaryDirectory() as directory:
         registry = ToolRegistry()
+        inventory_path = Path(directory) / "inventory.txt"
         register_inventory_tools(
-            registry, InventoryStore(Path(directory) / "inventory.txt", logging.getLogger("test"))
+            registry, InventoryStore(inventory_path, logging.getLogger("test"))
         )
         assistant = AssistantOrchestrator(
             ScriptedModelBackend(
@@ -78,3 +79,4 @@ def test_scripted_model_exercises_inventory_flow() -> None:
         outcome = assistant.handle("Remember tea")
         assert outcome.response == "Tea is in the inventory."
         assert outcome.tool_calls == ["inventory_append", "inventory_read"]
+        assert inventory_path.read_text(encoding="utf-8") == "tea\n"
