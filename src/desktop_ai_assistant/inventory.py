@@ -128,7 +128,8 @@ def register_inventory_tools(registry: ToolRegistry, store: InventoryStore) -> N
 
     @registry.register("inventory_read", "Read the complete inventory text.")
     def inventory_read(arguments: ToolArguments) -> str:
-        assert arguments == {}
+        if arguments:
+            raise ToolExecutionError("inventory_read does not accept arguments.")
         return store.read()
 
     @registry.register(
