@@ -1,5 +1,8 @@
 import logging
+from pathlib import Path
+from tempfile import TemporaryDirectory
 
+from desktop_ai_assistant.inventory import InventoryStore, register_inventory_tools
 from desktop_ai_assistant.model import ScriptedModelBackend
 from desktop_ai_assistant.orchestrator import AssistantOrchestrator
 from desktop_ai_assistant.registry import ToolRegistry
@@ -53,3 +56,25 @@ def test_tool_error_is_returned_to_model() -> None:
     )
     outcome = assistant.handle("try")
     assert outcome.response == "Recovered."
+
+
+def test_scripted_model_exercises_inventory_flow() -> None:
+    with TemporaryDirectory() as directory:
+        registry = ToolRegistry()
+        register_inventory_tools(
+            registry, InventoryStore(Path(directory) / "inventory.txt", logging.getLogger("test"))
+        )
+        assistant = AssistantOrchestrator(
+            ScriptedModelBackend(
+                [
+                    ToolCallResponse(ToolCall("append", "inventory_append", {"text": "tea"})),
+                    ToolCallResponse(ToolCall("read", "inventory_read", {})),
+                    FinalResponse("Tea is in the inventory."),
+                ]
+            ),
+            registry,
+            logging.getLogger("test"),
+        )
+        outcome = assistant.handle("Remember tea")
+        assert outcome.response == "Tea is in the inventory."
+        assert outcome.tool_calls == ["inventory_append", "inventory_read"]

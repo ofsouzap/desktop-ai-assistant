@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from .inventory import INVENTORY_FILENAME, InventoryStore, register_inventory_tools
 from .logging import configure_logging
 from .model import ScriptedModelBackend
 from .orchestrator import AssistantOrchestrator
@@ -12,8 +13,11 @@ from .registry import ToolRegistry
 def main() -> None:
     paths = application_paths()
     paths.ensure_directories()
+    logger = configure_logging(paths.state / "logs")
+    registry = ToolRegistry()
+    register_inventory_tools(registry, InventoryStore(paths.data / INVENTORY_FILENAME, logger))
     assistant = AssistantOrchestrator(
-        ScriptedModelBackend(()), ToolRegistry(), configure_logging(paths.state / "logs")
+        ScriptedModelBackend(()), registry, logger
     )
     print("Desktop AI Assistant (mock backend). Type 'quit' to exit.")
     while True:
@@ -36,4 +40,3 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
-
