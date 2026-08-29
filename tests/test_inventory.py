@@ -4,8 +4,6 @@ from tempfile import TemporaryDirectory
 
 from desktop_ai_assistant.inventory import (
     INVENTORY_FILENAME,
-    MAX_ENTRY_BYTES,
-    MAX_INVENTORY_BYTES,
     InventoryStore,
     register_inventory_tools,
 )
@@ -39,7 +37,17 @@ def test_overwrite_replaces_inventory() -> None:
         assert store.read() == "new entry\nanother note\n"
 
 
-def test_rejects_invalid_entry_and_oversized_content() -> None:
+def test_accepts_large_inventory_entries_and_content() -> None:
+    with TemporaryDirectory() as directory:
+        store = make_store(Path(directory) / INVENTORY_FILENAME)
+        large_text = "a" * (64 * 1024)
+        store.append(large_text)
+        assert store.read() == large_text + "\n"
+        store.overwrite(large_text)
+        assert store.read() == large_text
+
+
+def test_rejects_multiline_entry() -> None:
     with TemporaryDirectory() as directory:
         store = make_store(Path(directory) / INVENTORY_FILENAME)
         registry = ToolRegistry()
@@ -47,15 +55,7 @@ def test_rejects_invalid_entry_and_oversized_content() -> None:
         multiline = registry.dispatch(
             ToolCall("1", "inventory_append", {"text": "one\ntwo"})
         )
-        oversized_entry = registry.dispatch(
-            ToolCall("2", "inventory_append", {"text": "a" * (MAX_ENTRY_BYTES + 1)})
-        )
-        oversized_inventory = registry.dispatch(
-            ToolCall("3", "inventory_overwrite", {"text": "a" * (MAX_INVENTORY_BYTES + 1)})
-        )
         assert multiline.is_error
-        assert oversized_entry.content == "Inventory entry exceeds maximum size."
-        assert oversized_inventory.content == "Inventory exceeds maximum size."
         assert store.read() == ""
 
 

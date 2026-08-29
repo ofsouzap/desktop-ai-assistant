@@ -189,7 +189,8 @@
     - This allows simple additions to use `inventory_append` without first reading the file just to discover formatting.
   - Future hardening: make `inventory_overwrite` atomic with a temporary file,
     fsync/close, and rename/replace.
-  - Apply reasonable argument/file-size limits to avoid accidental runaway writes.
+  - Future hardening: apply reasonable argument/file-size limits to avoid
+    accidental runaway writes.
   - Log inventory mutations in enough detail to recover previous contents during testing.
   - Do not build a structured database, embeddings, semantic-search layer, or generic application/plugin framework in V1.
     - Reassess after real usage.

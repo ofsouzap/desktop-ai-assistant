@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import logging
-import os
 from pathlib import Path
 
 from .logging import log_event
@@ -11,8 +10,6 @@ from .registry import ArgumentSpec, ToolExecutionError, ToolRegistry
 from .types import ToolArguments
 
 INVENTORY_FILENAME = "inventory.txt"
-MAX_INVENTORY_BYTES = 64 * 1024
-MAX_ENTRY_BYTES = 4 * 1024
 
 _APPEND_DESCRIPTION = """Append one inventory entry.
 The inventory is UTF-8 plain text with one item or note per line. Each line is
@@ -28,7 +25,7 @@ but its text is free-form."""
 
 
 class InventoryStore:
-    """A bounded UTF-8 inventory at one application-controlled path."""
+    """A UTF-8 inventory at one application-controlled path."""
 
     def __init__(self, path: Path, logger: logging.Logger) -> None:
         self._path = path
@@ -38,26 +35,19 @@ class InventoryStore:
         if not self._path.exists():
             return ""
         try:
-            return self._decode(self._path.read_bytes())
-        except OSError as error:
+            return self._path.read_text(encoding="utf-8")
+        except (OSError, UnicodeError) as error:
             raise ToolExecutionError("Unable to read inventory.") from error
 
     def append(self, text: str) -> None:
-        encoded = self._validate_entry(text)
+        self._validate_entry(text)
         previous = self.read()
         separator = "" if not previous or previous.endswith("\n") else "\n"
-        if (
-            len(previous.encode("utf-8")) + len(separator.encode("utf-8")) + len(encoded) + 1
-            > MAX_INVENTORY_BYTES
-        ):
-            raise ToolExecutionError("Inventory exceeds maximum size.")
         updated = f"{previous}{separator}{text}\n"
         try:
             self._path.parent.mkdir(parents=True, exist_ok=True)
-            with self._path.open("ab") as inventory:
-                inventory.write((separator + text + "\n").encode("utf-8"))
-                inventory.flush()
-                os.fsync(inventory.fileno())
+            with self._path.open("a", encoding="utf-8") as inventory:
+                inventory.write(separator + text + "\n")
         except OSError as error:
             raise ToolExecutionError("Unable to append to inventory.") from error
         log_event(
@@ -69,14 +59,10 @@ class InventoryStore:
         )
 
     def overwrite(self, text: str) -> None:
-        encoded = self._validate_inventory(text)
         previous = self.read()
         try:
             self._path.parent.mkdir(parents=True, exist_ok=True)
-            with self._path.open("wb") as inventory:
-                inventory.write(encoded)
-                inventory.flush()
-                os.fsync(inventory.fileno())
+            self._path.write_text(text, encoding="utf-8")
         except OSError as error:
             raise ToolExecutionError("Unable to overwrite inventory.") from error
         log_event(
@@ -88,29 +74,9 @@ class InventoryStore:
         )
 
     @staticmethod
-    def _decode(content: bytes) -> str:
-        if len(content) > MAX_INVENTORY_BYTES:
-            raise ToolExecutionError("Inventory exceeds maximum size.")
-        try:
-            return content.decode("utf-8")
-        except UnicodeDecodeError as error:
-            raise ToolExecutionError("Inventory is not valid UTF-8.") from error
-
-    @staticmethod
-    def _validate_entry(text: str) -> bytes:
+    def _validate_entry(text: str) -> None:
         if not text or "\n" in text or "\r" in text:
             raise ToolExecutionError("Inventory entries must be one non-empty line.")
-        encoded = text.encode("utf-8")
-        if len(encoded) > MAX_ENTRY_BYTES:
-            raise ToolExecutionError("Inventory entry exceeds maximum size.")
-        return encoded
-
-    @staticmethod
-    def _validate_inventory(text: str) -> bytes:
-        encoded = text.encode("utf-8")
-        if len(encoded) > MAX_INVENTORY_BYTES:
-            raise ToolExecutionError("Inventory exceeds maximum size.")
-        return encoded
 
 
 def register_inventory_tools(registry: ToolRegistry, store: InventoryStore) -> None:
