@@ -45,9 +45,12 @@ class InventoryStore:
     def append(self, text: str) -> None:
         encoded = self._validate_entry(text)
         previous = self.read()
-        if len(previous.encode("utf-8")) + len(encoded) + 1 > MAX_INVENTORY_BYTES:
-            raise ToolExecutionError("Inventory exceeds maximum size.")
         separator = "" if not previous or previous.endswith("\n") else "\n"
+        if (
+            len(previous.encode("utf-8")) + len(separator.encode("utf-8")) + len(encoded) + 1
+            > MAX_INVENTORY_BYTES
+        ):
+            raise ToolExecutionError("Inventory exceeds maximum size.")
         updated = f"{previous}{separator}{text}\n"
         try:
             self._path.parent.mkdir(parents=True, exist_ok=True)
