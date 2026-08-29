@@ -27,7 +27,7 @@ class FakeThread:
 @dataclass
 class FakeClient:
     response: str
-    thread_arguments: list[object] = field(default_factory=list)
+    thread_arguments: list[dict[str, object]] = field(default_factory=list)
     closed: bool = False
 
     def thread_start(self, **kwargs: object) -> FakeThread:
@@ -63,7 +63,9 @@ def test_maps_tool_call_and_exposes_tool_schema() -> None:
     assert isinstance(response, ToolCallResponse)
     assert response.tool_call.name == "inventory_append"
     assert response.tool_call.arguments == {"text": "tea"}
-    assert "inventory_append" in client.thread_arguments[0]["developer_instructions"]
+    settings = client.thread_arguments[0]
+    assert str(settings["approval_mode"]) == "ApprovalMode.deny_all"
+    assert str(settings["sandbox"]) == "Sandbox.read_only"
 
 
 @pytest.mark.parametrize(

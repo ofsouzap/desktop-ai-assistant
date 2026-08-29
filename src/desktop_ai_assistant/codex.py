@@ -6,7 +6,7 @@ import json
 import tempfile
 import uuid
 from collections.abc import Callable, Mapping, Sequence
-from typing import Protocol
+from typing import Protocol, cast
 
 from openai_codex import ApprovalMode, Codex, Sandbox
 from openai_codex.models import JsonObject
@@ -70,9 +70,10 @@ class CodexModelBackend:
     """Adapt an authenticated local Codex runtime to the assistant model protocol."""
 
     def __init__(
-        self, client_factory: Callable[[], _CodexClient] = Codex
+        self, client_factory: Callable[[], _CodexClient] | None = None
     ) -> None:
-        self._client = client_factory()
+        client = Codex() if client_factory is None else client_factory()
+        self._client = cast(_CodexClient, client)
         self._workspace = tempfile.TemporaryDirectory(prefix="desktop-ai-assistant-")
 
     @property
