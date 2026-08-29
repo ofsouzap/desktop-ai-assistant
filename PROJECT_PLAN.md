@@ -1,87 +1,501 @@
 # Desktop AI Assistant — V1 Project Plan
 
-## Project goal
+- Project goal
+  - Build a personal AI-powered desktop assistant for Linux/Sway.
+  - V1 should provide a persistent text REPL through which the user can issue natural-language commands.
+  - The assistant should translate natural-language requests into a small, explicit set of structured tool calls.
+  - The assistant should be responsive and useful for short desktop tasks, rather than acting as a long-running autonomous agent.
+  - Security is a core design constraint.
+    - V1 will run as the normal desktop user for simplicity.
+    - Security will primarily come from exposing only a deliberately small set of tools, validating every tool call deterministically, and avoiding general-purpose execution capabilities.
+    - Containerisation/rootless isolation is a future hardening goal, not a V1 requirement.
 
-Build a personal AI-powered desktop assistant for Linux/Sway. V1 provides a
-persistent text REPL that translates natural-language requests into a small,
-explicit set of structured tool calls. It is intended for responsive, short
-desktop tasks rather than long-running autonomous work.
+- Core V1 security model
+  - Treat the LLM as an untrusted planner.
+    - The model may request a tool call.
+    - The model never directly executes code or desktop actions.
+    - All effects pass through the local orchestrator/tool layer.
+  - A registered tool is considered permitted to run automatically in V1.
+    - No confirmation flow is required in V1.
+    - Unregistered capabilities are unavailable.
+    - Confirmation tiers/permission classes are a future goal.
+  - Prefer reasonably general semantic tools with narrow deterministic validation over many tiny one-off tools.
+    - Example: `open_directory(path)` with validation that the resolved path lies under allowed roots is preferable to separately hardcoding `open_documents()` and `open_downloads()`.
+  - Every tool must validate all model-provided arguments before causing effects.
+    - Model-produced tool names and arguments are untrusted input.
+    - Safety constraints must be enforced in Python code, never only in prompts/tool descriptions.
+  - Do not expose any generic command-string execution surface.
+    - No arbitrary shell access.
+    - No Python `eval`/`exec`.
+    - No generic `sway_command(command: str)`.
+    - No arbitrary filesystem read/write tools in V1.
+  - No web search/browsing in V1.
+    - This deliberately removes the largest prompt-injection surface.
+  - Treat ordinary tool-returned content as data, not instructions.
+    - Inventory contents, Sway window titles, and other future external/local content are untrusted data.
+    - Tool outputs should be clearly structured/delimited when passed back to the model.
+    - A future trusted configuration/instruction source may be explicitly distinguished from ordinary data.
+  - General computer use is explicitly deferred.
+    - No screenshots/computer vision in V1.
+    - No arbitrary mouse movement/clicking.
+    - No arbitrary keyboard simulation.
+    - These are later capabilities that should still pass through explicit security boundaries.
 
-## Core security model
+- Implementation language and code-quality requirements
+  - Implement the application in Python.
+  - Use strong static typing throughout.
+    - Avoid loosely typed dictionaries at major internal interfaces where practical.
+    - Define explicit typed representations for messages, tool definitions, tool calls, tool results, model events/responses, errors, and normalized Sway data.
+    - Use `Protocol`, abstract base classes, dataclasses, enums, `TypedDict`, or validated model classes where appropriate.
+    - Prefer types that make invalid states difficult to represent.
+    - Run a strict static type checker in development and CI.
+      - The implementation agent should choose a suitable checker/configuration, e.g. Pyright or mypy, and enable a reasonably strict mode early.
+    - Type-checking failures should fail CI.
+  - Keep architectural boundaries clear and provider/backend implementations replaceable.
+  - Do not over-engineer abstractions before they are needed, but major components must depend on interfaces rather than provider-specific or backend-specific implementations.
+  - Keep the project straightforward for both human contributors and AI coding agents to understand and modify.
 
-- Treat the LLM as an untrusted planner: it requests tools but never directly
-  executes code or desktop actions.
-- Only registered tools run automatically; all arguments are deterministically
-  validated in Python.
-- Do not provide arbitrary shell execution, `eval`/`exec`, generic Sway
-  commands, arbitrary filesystem access, web browsing, screenshots, or
-  arbitrary input simulation.
-- Treat tool-returned content as untrusted data.
-- Container/rootless isolation and confirmation tiers are future hardening
-  work, not V1 requirements.
+- High-level architecture
+  - `CLI / persistent REPL`
+    - accepts user text;
+    - prints assistant responses;
+    - shows tool calls by default in V1;
+    - prints useful errors;
+    - does not normally print raw tool responses.
+  - `Conversation/session state`
+    - lives in memory for the lifetime of one REPL process;
+    - persists across multiple commands in that REPL;
+    - is discarded when the REPL exits.
+  - `Assistant orchestrator`
+    - owns the conversation history;
+    - invokes the model backend;
+    - receives model tool-call requests;
+    - dispatches validated calls through the tool registry;
+    - returns tool results to the model;
+    - repeats for a bounded number of sequential steps;
+    - ends when the model returns a final response.
+  - `Model abstraction`
+    - isolates provider/authentication/model-specific logic;
+    - exposes only the subset needed by the assistant: conversation/messages, tool schemas, tool-result feedback, and final/tool-call responses/events.
+  - `Tool registry`
+    - central registry of model-visible tools;
+    - preferably declarative/decorator-based;
+    - derives or stores:
+      - tool name;
+      - tool description;
+      - argument schema;
+      - Python implementation;
+      - validation;
+      - metadata useful for logging and future permission policies.
+  - `Tool implementations`
+    - implement concrete inventory and Sway capabilities.
+  - `Backend/helper layers`
+    - inventory storage adapter;
+    - Sway adapter around `swaymsg`;
+    - XDG path helper;
+    - logging facilities.
+  - Keep the boundaries suitable for later moving the assistant/model runtime into a rootless container while leaving a small trusted host-side broker for desktop operations.
 
-## Architecture
+- Model/orchestration behavior
+  - Use native tool/function calling where supported rather than prompting the model to emit ad-hoc JSON.
+  - Define internal provider-independent types for model interaction.
+  - Keep provider-specific request and response formats inside backend adapters.
+  - Orchestration is a bounded `observe -> reason -> act` loop.
+    - Sequential tool calls only in V1.
+    - No separate explicit planning phase.
+    - Use a small configurable hard limit, initially around 5 tool calls per user command.
+    - Stop immediately when the model returns a final response.
+    - If the step limit is reached, terminate cleanly and report/log the problem.
+  - Every tool call in a multi-step sequence must be independently validated.
+  - Parallel tool execution is a later goal.
+    - It will be useful for latency, particularly for independent reads.
+    - Future parallelism should initially focus on independent/read-only calls; concurrent writes need more careful ordering semantics.
+  - Keep the model/session interface compatible with event/stream-oriented backends.
+    - Streaming UI is not required in V1.
+    - Do not force the architecture into a simplistic provider-specific HTTP request/response shape if the chosen backend is stateful/event-driven.
 
-- Persistent CLI/REPL with concise responses and visible tool calls.
-- In-memory conversation session for the REPL lifetime.
-- Bounded sequential orchestrator which calls a provider-independent model
-  backend, dispatches validated calls through a central registry, feeds results
-  back, and ends on a final response.
-- Typed model, message, tool-call, result, error, and future Sway-data
-  representations.
-- Declarative tool registry, XDG path helper, structured logging, inventory
-  storage adapter, and Sway adapter boundary.
-- Provider/backend implementations remain replaceable and suitable for future
-  rootless-container separation.
+- Model backend strategy
+  - Do not hardcode V1 around a single provider in the wider codebase.
+  - Implement a provider-independent model interface first.
+  - At the model-backend milestone, investigate the simplest strong hosted-model option and stop for human review before committing.
+  - Candidate approaches to investigate:
+    - ChatGPT/Codex subscription-backed authentication similar to the OpenClaw OpenAI-provider flow, if it can be integrated cleanly while preserving this project's own tool/orchestration layer.
+    - Standard OpenAI API as a straightforward paid fallback.
+    - Hugging Face Inference Providers with a strong tool-capable open-weight model such as an appropriate Qwen-class model.
+    - Other hosted providers if they materially simplify strong tool-calling inference.
+  - V1 should deliberately use a strong model.
+    - Early failures should be more likely attributable to tool descriptions, orchestration, validation, or application design than to an underpowered model.
+  - Local inference is a later goal.
+    - The backend abstraction should allow local-model experiments without changes to the rest of the codebase.
+    - The later evaluation suite should be usable to compare local models against the strong hosted baseline.
 
-## Milestones
+- Persistent files and XDG layout
+  - Respect XDG environment variables; do not hardcode user-home fallback paths directly throughout the codebase.
+  - Provide one central path helper.
+  - Use the standard locations:
+    - configuration: `$XDG_CONFIG_HOME/<app>/`, fallback `~/.config/<app>/`;
+    - persistent application data: `$XDG_DATA_HOME/<app>/`, fallback `~/.local/share/<app>/`;
+    - state/logs: `$XDG_STATE_HOME/<app>/`, fallback `~/.local/state/<app>/`;
+    - cache later if required: `$XDG_CACHE_HOME/<app>/`, fallback `~/.cache/<app>/`.
+  - Initial files should include approximately:
+    - config file under the XDG config directory;
+    - inventory text file under the XDG data directory;
+    - logs under the XDG state directory.
+  - Exact application/package name can be chosen during implementation.
 
-### 1. Repository, typed architecture, CI, and mock orchestration
+- Logging and error handling
+  - V1 logs should be full-fidelity because the project is initially for personal testing/debugging.
+  - Log enough information to reconstruct each assistant turn:
+    - timestamps;
+    - user input;
+    - model/provider identifier;
+    - model outputs/events;
+    - requested tool calls;
+    - validated tool arguments;
+    - tool results;
+    - validation failures;
+    - exceptions;
+    - final assistant response.
+  - For destructive/replacing state changes such as inventory overwrite, retain enough information to inspect or undo the change.
+    - Logging old/new contents or a clear diff is acceptable.
+  - Console behavior:
+    - show requested tool calls by default;
+    - do not normally print raw tool responses;
+    - print errors clearly and usefully;
+    - detailed exception/trace information should also be available in logs;
+    - recoverable errors should not kill the REPL.
+  - Tool errors occurring during a model turn should be returned to the model as tool results where appropriate so it can recover within the bounded sequence.
 
-Implement the Python package skeleton; reproducible development setup;
-persistent REPL; strict static type checking; provider-independent types and
-model interface; declarative registry, schemas, validation, and dispatch;
-bounded sequential loop (initially five calls); in-memory session context; XDG
-paths; full-fidelity structured logging; scripted model backend; recoverable
-error handling; deterministic tests; and GitHub Actions running tests and
-strict typing. Do not add real providers, inventory effects, or Sway effects.
-Stop for human architectural review.
+- Inventory V1
+  - Inventory is deliberately implemented as mostly unstructured text to test how effectively the LLM can reason over flexible persistent state.
+  - Store inventory in one assistant-owned text file at a fixed XDG data path.
+    - The model must never choose the storage path.
+  - Model-facing tools:
+    - `inventory_read() -> str`
+      - returns the entire inventory file.
+    - `inventory_append(text: str)`
+      - appends a new inventory item/entry.
+    - `inventory_overwrite(text: str)`
+      - atomically replaces the complete inventory file.
+  - The inventory format should remain lightweight and human-readable.
+    - Prefer one item/entry per line or another simple convention.
+    - Allow free-form notes so entries can contain information not anticipated by a rigid schema.
+  - Tool descriptions for `inventory_append` and `inventory_overwrite` must explicitly teach the model the inventory format.
+    - Include the expected entry/line convention.
+    - State which pieces are conventional and which are free-form.
+    - Include a couple of representative examples.
+    - Instruct overwrites to preserve the established format.
+    - This allows simple additions to use `inventory_append` without first reading the file just to discover formatting.
+  - `inventory_overwrite` must be implemented atomically.
+    - write to a temporary file;
+    - fsync/close as appropriate;
+    - rename/replace the target.
+  - Apply reasonable argument/file-size limits to avoid accidental runaway writes.
+  - Log inventory mutations in enough detail to recover previous contents during testing.
+  - Do not build a structured database, embeddings, semantic-search layer, or generic application/plugin framework in V1.
+    - Reassess after real usage.
 
-### 2. Inventory tools and safe local persistence
+- Sway V1
+  - Use `swaymsg` through Python `subprocess` for V1.
+    - Direct Sway IPC or a Python IPC library is a future implementation optimisation if `swaymsg` proves slow or problematic.
+  - Build an internal Sway adapter/helper layer rather than invoking `subprocess` independently from model-facing tools.
+  - The Sway helper should:
+    - accept structured arguments rather than arbitrary command strings from model-facing code;
+    - construct known-safe `swaymsg` invocations;
+    - check return codes;
+    - parse JSON responses;
+    - normalize errors;
+    - normalize raw Sway data into concise typed internal structures.
+  - Model-facing Sway tools for V1:
+    - `list_windows()`
+      - return normalized window/container data such as ID, app ID/class, title, workspace, and focused state.
+    - `list_workspaces()`
+      - return normalized workspace data.
+    - `get_focused_window()`
+      - return the currently focused window/container in normalized form.
+    - `focus_window(window_id)`
+    - `move_window_to_workspace(window_id, workspace)`
+    - `focus_workspace(workspace)`
+    - `set_fullscreen(window_id, enabled)`
+  - No generic `swaymsg` command tool.
+  - V1 write operations identify windows using concrete Sway container/window IDs.
+    - The model may first call `list_windows()` and then act on the selected ID.
+  - Text/app-name convenience lookup is a later goal.
+    - Future versions may allow deterministic matching such as `"Firefox"` to reduce LLM round trips and latency.
+  - Keep the model-facing Sway interface independent of the fact that `swaymsg` is the V1 backend.
 
-Add fixed-XDG-path inventory read, append, and atomic overwrite tools. Keep
-human-readable free-form entries, document the format in write-tool
-descriptions, impose reasonable limits, log recoverable mutation data, and add
-mocked deterministic tests.
+- REPL V1 behavior
+  - Start as a persistent interactive CLI/REPL.
+  - Conversation context persists across commands while that process is running.
+  - No cross-process/session conversation persistence in V1.
+  - A typical interaction should resemble:
+    - user enters natural-language request;
+    - model chooses a tool;
+    - REPL prints a concise representation of the tool call;
+    - tool executes;
+    - result is passed back to the model;
+    - model may make further sequential calls, up to the step limit;
+    - final assistant response is printed.
+  - Keep responses concise by default because the assistant is primarily for short desktop interactions.
+  - Future goals:
+    - persistent conversation/memory between launches;
+    - editable persistent instruction file analogous to `AGENTS.md`, potentially containing assistant name, user-provided persistent instructions, preferences, or other context;
+    - voice input/output and wake-word triggering.
 
-### 3. Strong real model backend
+- Testing strategy
+  - Treat deterministic software testing and probabilistic model evaluation as separate concerns.
+  - Standard automated tests should cover components with objective expected behavior.
+  - Unit/integration-test targets include:
+    - XDG path resolution;
+    - tool registration;
+    - schema generation;
+    - tool argument validation;
+    - tool dispatch;
+    - orchestration step limits;
+    - recovery from tool errors;
+    - inventory read/append/atomic overwrite behavior;
+    - inventory size/validation rules;
+    - Sway command construction;
+    - Sway JSON parsing/normalization;
+    - Sway subprocess error handling;
+    - logging;
+    - model adapters using mocked model responses/events.
+  - Use mocks/fakes for OS-affecting backends in ordinary tests.
+    - Tests should not move real desktop windows or mutate the user's real inventory unless explicitly marked as manual/integration tests.
+  - Add static analysis to the automated quality checks.
+    - strict type checking;
+    - lint/format checks if chosen by the implementation agent.
+  - GitHub Actions CI should be introduced early, not deferred to final polish.
+    - Run on pushes and pull requests.
+    - At minimum run:
+      - unit/integration test suite;
+      - static type checker.
+    - Add formatting/lint checks if the project adopts them.
+    - Keep CI deterministic; do not require paid/live LLM calls for normal CI.
 
-First investigate hosted model choices and stop for human selection. Then
-implement exactly one provider behind the model interface, test mocked provider
-responses, and keep live calls out of CI.
+- Behavioral evaluation strategy
+  - Maintain a separate small evaluation suite for end-to-end LLM/tool behavior.
+  - Evaluations are initially run manually, not as required CI.
+  - Each evaluation case should specify:
+    - natural-language user task;
+    - mocked initial tool/backend state;
+    - available tools;
+    - objective expectations where possible.
+  - Objective checks can include:
+    - expected tools called;
+    - correct structured arguments;
+    - expected order/dependencies;
+    - expected resulting mocked state;
+    - absence of forbidden or irrelevant tool calls;
+    - staying within the step limit;
+    - producing a final answer.
+  - Emit/retain a complete machine-readable trace, preferably JSON, containing:
+    - input;
+    - model events/responses;
+    - tool calls;
+    - tool results;
+    - final response.
+  - Use human or AI-agent review for subjective qualities:
+    - whether the chosen process was sensible;
+    - whether tool descriptions appear confusing;
+    - whether unnecessary calls were made;
+    - whether final text is concise and appropriate.
+  - Do not build a large automated LLM-judge framework for V1.
+    - The user intends to invoke these evaluations manually with coding agents such as VS Code/Codex agents.
+  - Later use the same evaluation suite to compare different model backends, especially hosted versus local models.
 
-### 4. Sway desktop integration
+- Milestone 1 — Repository, typed architecture, CI, and mock orchestration
+  - Goal
+    - Establish the project structure and architectural boundaries before implementing real AI or desktop effects.
+  - Implement:
+    - Python package/repository skeleton.
+    - development environment/dependency management suitable for reproducible local development;
+    - persistent REPL shell;
+    - strong type-checking configuration;
+    - provider-independent internal data types;
+    - model backend/session interface;
+    - tool registry and decorator/declarative registration mechanism;
+    - schema/argument validation;
+    - tool dispatcher;
+    - bounded sequential orchestration loop, initially around 5 tool calls;
+    - in-memory conversation context;
+    - XDG path helper;
+    - structured/full-fidelity logging;
+    - mock/scripted model backend;
+    - clear error handling that keeps the REPL alive after recoverable errors.
+  - Add initial automated tests for all of the above.
+  - Add GitHub Actions CI now.
+    - run tests;
+    - run strict static type checking;
+    - optionally run formatter/linter checks if adopted.
+  - Avoid implementing real provider, inventory, or Sway effects unless trivial scaffolding is needed.
+  - Human review checkpoint:
+    - stop after this milestone;
+    - review package/module structure;
+    - confirm major abstractions are clean and not provider-specific;
+    - confirm strict typing is effective;
+    - confirm adding a new tool is lightweight;
+    - confirm CI is passing;
+    - confirm orchestration supports multi-step sequential turns without exposing arbitrary execution.
 
-Add a typed `swaymsg` adapter with known-safe structured invocations and
-normalized errors/data. Add list/focused window/workspace, focus, move, and
-fullscreen tools without generic command text. Test subprocess handling with
-mocks and manually audit real-Sway writes.
+- Milestone 2 — Inventory tools and safe local persistence
+  - Goal
+    - Prove the tool loop on a low-risk persistent capability before adding a live model or desktop authority.
+  - Implement:
+    - inventory path in XDG data directory;
+    - `inventory_read`;
+    - `inventory_append`;
+    - `inventory_overwrite`;
+    - lightweight text entry format;
+    - examples/format instructions embedded in write-tool descriptions;
+    - atomic overwrite;
+    - size/argument validation;
+    - detailed mutation logging.
+  - Extend mock/scripted model tests to exercise inventory flows.
+  - Add deterministic unit tests for all inventory operations and failure paths.
+  - Human review checkpoint:
+    - inspect the text format and tool descriptions;
+    - confirm a simple append does not require a prior read;
+    - inspect logs and recoverability of overwrite;
+    - decide whether the unstructured inventory approach is suitable to continue testing.
 
-### 5. Behavioral evaluation suite and reliability pass
+- Milestone 3 — Strong real model backend
+  - Goal
+    - Make the assistant genuinely language-driven while keeping provider integration isolated.
+  - First perform a short investigation and stop for user review before selecting the concrete backend.
+    - Investigate current practicality of:
+      - ChatGPT/Codex subscription-backed auth similar to OpenClaw;
+      - standard OpenAI API;
+      - Hugging Face Inference Providers with a strong tool-capable model;
+      - another simple strong hosted alternative if clearly preferable.
+    - Evaluate:
+      - ease of authentication/setup;
+      - ability to supply custom tools cleanly;
+      - ability to preserve this application's own orchestration loop;
+      - model quality;
+      - latency;
+      - expected cost/allowance;
+      - provider/library complexity.
+  - After human choice, implement exactly one real V1 backend behind the existing model interface.
+  - Ensure backend-specific data structures do not leak into the orchestrator/tool layers.
+  - Use the real model with the inventory tools.
+  - Confirm sequential multi-step tool behavior works.
+  - Add adapter-level tests using mocked provider responses.
+  - Do not make live paid/subscription model calls mandatory in CI.
+  - Human review checkpoint:
+    - use the inventory assistant interactively;
+    - inspect tool-call quality and latency;
+    - confirm failures can reasonably be attributed/debugged using traces;
+    - confirm backend replacement remains localized.
 
-Build a small manually run evaluation harness using mocked inventory and Sway
-state. Retain JSON traces, objectively check useful expectations, and use
-human/agent review for qualitative assessment.
+- Milestone 4 — Sway desktop integration
+  - Goal
+    - Add a useful, constrained set of desktop-control capabilities.
+  - Implement the internal typed Sway adapter around `swaymsg`.
+    - central subprocess helper;
+    - structured command construction;
+    - JSON queries;
+    - normalized typed results;
+    - normalized errors.
+  - Implement and register the agreed V1 Sway tools:
+    - `list_windows`;
+    - `list_workspaces`;
+    - `get_focused_window`;
+    - `focus_window`;
+    - `move_window_to_workspace`;
+    - `focus_workspace`;
+    - `set_fullscreen`.
+  - Ensure no model-facing function accepts arbitrary Sway command text.
+  - Add comprehensive tests using mocked `swaymsg` subprocess responses.
+  - Add a small set of explicit manual real-Sway integration checks.
+  - Exercise multi-step commands such as:
+    - identify Firefox and VS Code by listing windows;
+    - move VS Code to Firefox's workspace;
+    - focus the destination workspace/window.
+  - Human review checkpoint:
+    - manually audit every write-capable Sway tool;
+    - inspect validation and command construction;
+    - run representative commands on the real desktop;
+    - verify logs clearly show every requested action;
+    - confirm the available authority still feels appropriately constrained.
 
-### 6. V1 polish, installability, and security review
+- Milestone 5 — Behavioral evaluation suite and reliability pass
+  - Goal
+    - Establish a repeatable way to tell whether the model/tool system behaves reasonably.
+  - Create a lightweight manually-run eval harness.
+  - Add fixed inventory scenarios with mocked inventory state.
+  - Add fixed Sway scenarios with mocked window/workspace state.
+  - Include both:
+    - objectively checkable tasks;
+    - cases intended mainly for qualitative trace review.
+  - Automatically check objective expectations where practical.
+  - Serialize complete evaluation traces to JSON.
+  - Document how to hand traces/results to a coding agent for qualitative review.
+  - Run the suite against the selected real model and record/inspect failures.
+  - Improve tool descriptions, normalized tool results, and orchestration behavior based on observed failure modes.
+  - Do not optimize solely for an aggregate score; inspect why failures occurred.
+  - Human review checkpoint:
+    - review representative traces;
+    - identify model weakness vs tool/API-design weakness;
+    - confirm the eval suite is small and useful rather than becoming a separate large project.
 
-Review validation, tool descriptions, logging, error paths, REPL ergonomics,
-and XDG behavior. Provide install/run documentation, keep CI green, execute
-evaluations, and perform a final manual security review.
+- Milestone 6 — V1 polish, installability, and security review
+  - Goal
+    - Turn the prototype into a convenient personal tool suitable for regular testing/use.
+  - Review:
+    - all model-facing tool descriptions;
+    - all validators;
+    - all Sway write operations;
+    - logging completeness;
+    - error paths;
+    - step-limit behavior.
+  - Improve REPL ergonomics and concise console formatting.
+  - Ensure recoverable failures keep the REPL usable.
+  - Add configuration for relevant runtime/model choices without coupling the rest of the application to the provider.
+  - Finalize XDG path usage.
+  - Provide clear installation/development/run instructions.
+  - Integrate installation/startup with the user's normal Linux/Nix/Home Manager workflow if useful, without making Nix-specific code part of the core runtime.
+  - Ensure GitHub CI remains green and covers tests + strict type checking.
+  - Run the behavioral evaluation suite and perform a final manual desktop security review.
+  - Human review checkpoint / V1 completion:
+    - confirm the assistant is useful for inventory and selected Sway operations;
+    - confirm tool calls are visible and logs are sufficient to understand behavior;
+    - confirm no generic shell/filesystem/Sway escape hatch has appeared;
+    - tag or otherwise mark the result as V1.
 
-## Deferred goals
-
-Rootless isolation, confirmation policies, parallel calls, richer desktop
-operations, screenshot/general computer use, persistent conversation or
-instructions, other integrations, local models, and voice are explicitly
-post-V1. Reassess the security model before every major capability expansion.
+- Explicitly deferred post-V1 goals
+  - Security/isolation:
+    - move the untrusted/intelligent runtime into a rootless container;
+    - potentially introduce a minimal host-side desktop broker;
+    - add more formal permission categories;
+    - add ergonomic confirmation flows for sensitive actions.
+  - Tool execution:
+    - parallel independent tool calls;
+    - richer concurrency/error semantics;
+    - broader but still validated general-purpose tools.
+  - Sway/desktop:
+    - deterministic text/app/title window lookup to reduce model round trips;
+    - direct Sway IPC or Python library if beneficial;
+    - richer window/layout/output operations;
+    - screenshots and visual desktop inspection;
+    - controlled mouse/keyboard interaction and general computer use.
+  - Persistent assistant state:
+    - conversation persistence between REPL launches;
+    - editable persistent instruction file analogous to `AGENTS.md`;
+    - assistant name/personality/user-provided persistent information;
+    - richer memory/storage mechanisms if real usage justifies them.
+  - Other integrations:
+    - Home Assistant queries/actions;
+    - more local desktop/application integrations;
+    - deliberately reviewed filesystem capabilities.
+  - Models:
+    - ChatGPT Plus/Codex subscription integration if not used in V1;
+    - local inference after hardware upgrade;
+    - compare model backends using the same evaluation suite.
+  - Voice:
+    - speech-to-text;
+    - text-to-speech;
+    - wake-word detection;
+    - eventually an always-on listener;
+    - potentially move the always-on microphone/wake-word component to dedicated Raspberry Pi-class hardware.
+  - Reassess the security model before each major capability expansion, especially whenever the assistant gains access to external/untrusted content or more general computer-control primitives.
