@@ -14,7 +14,7 @@ Requires Python 3.11 or newer.
 
 ```sh
 python -m pip install -e ".[dev]"
-python -m unittest discover -s tests -v
+pytest
 mypy
 ```
 
