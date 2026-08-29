@@ -33,8 +33,6 @@ class ScriptedModelBackend:
     def next_response(
         self, messages: Sequence[Message], tools: Sequence[ToolSchema]
     ) -> ModelResponse:
-        del messages, tools
         if not self._responses:
             return FinalResponse("No scripted response is available.")
         return self._responses.popleft()
-

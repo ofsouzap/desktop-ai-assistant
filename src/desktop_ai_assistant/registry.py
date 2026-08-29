@@ -87,18 +87,17 @@ class ToolRegistry:
             )
         validated: dict[str, Primitive] = {}
         for specification in specifications:
-            value = arguments.get(specification.name)
-            if value is None:
+            if specification.name in arguments:
+                value = arguments[specification.name]
+                if type(value) is not specification.kind:
+                    raise ToolValidationError(
+                        f"Argument {specification.name} must be "
+                        f"{specification.kind.__name__}."
+                    )
+                validated[specification.name] = value
+            else:
                 if specification.required:
                     raise ToolValidationError(
                         f"Missing required argument: {specification.name}"
                     )
-                continue
-            if type(value) is not specification.kind:
-                raise ToolValidationError(
-                    f"Argument {specification.name} must be "
-                    f"{specification.kind.__name__}."
-                )
-            validated[specification.name] = value
         return validated
-

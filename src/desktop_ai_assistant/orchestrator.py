@@ -34,30 +34,34 @@ class AssistantOrchestrator:
         self._maximum_steps = maximum_steps
         self._messages: list[Message] = []
 
+    def _log_event(self, event: str, **details: object) -> None:
+        log_event(self._logger, event, **details)
+
     def handle(self, user_input: str) -> TurnOutcome:
         self._messages.append(Message(MessageRole.USER, user_input))
-        log_event(self._logger, "user_input", content=user_input)
+        self._log_event("user_input", content=user_input)
         calls: list[str] = []
         try:
             for _ in range(self._maximum_steps):
                 response = self._model.next_response(self._messages, self._tools.schemas())
-                log_event(
-                    self._logger, "model_response", provider=self._model.identifier, response=response
+                self._log_event(
+                    "model_response", provider=self._model.identifier, response=response
                 )
                 if isinstance(response, FinalResponse):
                     self._messages.append(Message(MessageRole.ASSISTANT, response.content))
-                    log_event(self._logger, "assistant_response", content=response.content)
+                    self._log_event("assistant_response", content=response.content)
                     return TurnOutcome(response.content, calls)
-                call = response.tool_call
-                calls.append(call.name)
-                log_event(self._logger, "tool_requested", tool_call=call)
-                result = self._tools.dispatch(call)
-                log_event(self._logger, "tool_result", tool_result=result)
-                self._messages.append(
-                    Message(MessageRole.TOOL, result.content, tool_call_id=result.tool_call_id)
-                )
+                else:
+                    call = response.tool_call
+                    calls.append(call.name)
+                    self._log_event("tool_requested", tool_call=call)
+                    result = self._tools.dispatch(call)
+                    self._log_event("tool_result", tool_result=result)
+                    self._messages.append(
+                        Message(MessageRole.TOOL, result.content, tool_call_id=result.tool_call_id)
+                    )
             message = f"Stopped after {self._maximum_steps} tool calls."
-            log_event(self._logger, "step_limit_reached", limit=self._maximum_steps)
+            self._log_event("step_limit_reached", limit=self._maximum_steps)
             return TurnOutcome(message, calls, error=message)
         except Exception:
             self._logger.exception("orchestration_failure")
@@ -66,4 +70,3 @@ class AssistantOrchestrator:
                 calls,
                 error="orchestration failure",
             )
-

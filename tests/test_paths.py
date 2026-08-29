@@ -17,6 +17,22 @@ def test_honors_xdg_environment() -> None:
     assert paths.state == Path("/state") / APPLICATION_NAME
 
 
+def test_uses_fallback_for_missing_xdg_value() -> None:
+    home = Path("/home/tester")
+    paths = application_paths({"XDG_CONFIG_HOME": "/config"}, home)
+    assert paths.config == Path("/config") / APPLICATION_NAME
+    assert paths.data == home / ".local/share" / APPLICATION_NAME
+    assert paths.state == home / ".local/state" / APPLICATION_NAME
+
+
+def test_uses_fallbacks_when_no_xdg_values_are_set() -> None:
+    home = Path("/home/tester")
+    paths = application_paths({}, home)
+    assert paths.config == home / ".config" / APPLICATION_NAME
+    assert paths.data == home / ".local/share" / APPLICATION_NAME
+    assert paths.state == home / ".local/state" / APPLICATION_NAME
+
+
 def test_creates_directories() -> None:
     with TemporaryDirectory() as temporary_directory:
         paths = application_paths({}, Path(temporary_directory))

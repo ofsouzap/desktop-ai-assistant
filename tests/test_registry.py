@@ -35,3 +35,15 @@ def test_rejects_invalid_arguments() -> None:
 def test_rejects_unregistered_tool() -> None:
     result = make_registry().dispatch(ToolCall("1", "shell", {}))
     assert result.is_error
+
+
+def test_accepts_false_boolean_argument() -> None:
+    registry = ToolRegistry()
+
+    @registry.register("set_enabled", "Set enabled state.", (ArgumentSpec("enabled", bool, ""),))
+    def set_enabled(arguments: ToolArguments) -> str:
+        return str(arguments["enabled"])
+
+    result = registry.dispatch(ToolCall("1", "set_enabled", {"enabled": False}))
+    assert result.content == "False"
+    assert not result.is_error
