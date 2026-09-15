@@ -120,30 +120,39 @@ class OpenRouterModelBackend:
 
     @staticmethod
     def _tools(tools: Sequence[ToolSchema]) -> list[dict[str, object]]:
-        return [
-            {
-                "type": "function",
-                "function": {
-                    "name": tool.name,
-                    "description": tool.description,
-                    "parameters": {
-                        "type": "object",
-                        "properties": {
-                            argument.name: {
-                                "type": _JSON_SCHEMA_TYPES[argument.kind],
-                                "description": argument.description,
-                            }
-                            for argument in tool.arguments
+        definitions: list[dict[str, object]] = []
+        for tool in tools:
+            properties: dict[str, object] = {}
+            for argument in tool.arguments:
+                json_schema_type = _JSON_SCHEMA_TYPES.get(argument.kind)
+                if json_schema_type is None:
+                    raise ValueError(
+                        f"Tool argument {argument.name} has an unsupported type."
+                    )
+                properties[argument.name] = {
+                    "type": json_schema_type,
+                    "description": argument.description,
+                }
+            definitions.append(
+                {
+                    "type": "function",
+                    "function": {
+                        "name": tool.name,
+                        "description": tool.description,
+                        "parameters": {
+                            "type": "object",
+                            "properties": properties,
+                            "required": [
+                                argument.name
+                                for argument in tool.arguments
+                                if argument.required
+                            ],
+                            "additionalProperties": False,
                         },
-                        "required": [
-                            argument.name for argument in tool.arguments if argument.required
-                        ],
-                        "additionalProperties": False,
                     },
-                },
-            }
-            for tool in tools
-        ]
+                }
+            )
+        return definitions
 
     @staticmethod
     def _response(response: object) -> ModelResponse:

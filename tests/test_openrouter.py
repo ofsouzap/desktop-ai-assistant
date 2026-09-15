@@ -141,6 +141,29 @@ def test_rejects_invalid_tool_arguments(arguments: str) -> None:
         backend.next_response([Message(MessageRole.USER, "hello")], [])
 
 
+def test_rejects_multiple_tool_calls() -> None:
+    backend = OpenRouterModelBackend(
+        lambda: FakeClient(
+            FakeResponse(
+                [
+                    FakeChoice(
+                        FakeMessage(
+                            None,
+                            [
+                                FakeCall("call-1", FakeFunction("first", "{}")),
+                                FakeCall("call-2", FakeFunction("second", "{}")),
+                            ],
+                        )
+                    )
+                ]
+            )
+        )
+    )
+
+    with pytest.raises(ValueError, match="multiple tool calls"):
+        backend.next_response([Message(MessageRole.USER, "hello")], [])
+
+
 def test_requires_api_key(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.delenv("OPENROUTER_API_KEY", raising=False)
 
