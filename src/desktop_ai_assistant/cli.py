@@ -18,13 +18,14 @@ def command_login() -> None:
     with Codex() as codex:
         if codex.account().account is not None:
             print("A ChatGPT login is already available.")
-            return
-        login = codex.login_chatgpt_device_code()
-        print(f"Open {login.verification_url} and enter code: {login.user_code}")
-        result = login.wait()
-    if not result.success:
-        raise RuntimeError("ChatGPT login did not complete.")
-    print("ChatGPT login completed.")
+        else:
+            login = codex.login_chatgpt_device_code()
+            print(f"Open {login.verification_url} and enter code: {login.user_code}")
+
+            result = login.wait()
+            if not result.success:
+                raise RuntimeError("ChatGPT login did not complete.")
+            print("ChatGPT login completed.")
 
 
 def command_chat() -> None:
