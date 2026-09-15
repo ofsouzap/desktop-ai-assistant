@@ -143,6 +143,26 @@ class CodexModelBackend:
         )
 
     @staticmethod
+    def _parse_response_final(decoded: Mapping[str, object]) -> ModelResponse:
+        content = decoded.get("content")
+        if isinstance(content, str):
+            return FinalResponse(content)
+        raise ValueError("Codex final response must include text content.")
+
+    @staticmethod
+    def _parse_response_tool_call(decoded: Mapping[str, object]) -> ToolCallResponse:
+        name = decoded.get("name")
+        arguments = decoded.get("arguments")
+        if not isinstance(name, str) or not isinstance(arguments, Mapping):
+            raise ValueError("Codex tool call must include a name and arguments.")
+        typed_arguments: dict[str, Primitive] = {}
+        for key, value in arguments.items():
+            if not isinstance(key, str) or type(value) not in {str, int, bool}:
+                raise ValueError("Codex tool call arguments have invalid values.")
+            typed_arguments[key] = value
+        return ToolCallResponse(ToolCall(str(uuid.uuid4()), name, typed_arguments))
+
+    @staticmethod
     def _parse_response(response: str) -> ModelResponse:
         try:
             decoded: object = json.loads(response)
@@ -150,21 +170,11 @@ class CodexModelBackend:
             raise ValueError("Codex returned invalid structured output.") from error
         if not isinstance(decoded, Mapping):
             raise ValueError("Codex structured output must be an object.")
+
         kind = decoded.get("kind")
         if kind == "final":
-            content = decoded.get("content")
-            if isinstance(content, str):
-                return FinalResponse(content)
-            raise ValueError("Codex final response must include text content.")
-        if kind == "tool_call":
-            name = decoded.get("name")
-            arguments = decoded.get("arguments")
-            if not isinstance(name, str) or not isinstance(arguments, Mapping):
-                raise ValueError("Codex tool call must include a name and arguments.")
-            typed_arguments: dict[str, Primitive] = {}
-            for key, value in arguments.items():
-                if not isinstance(key, str) or type(value) not in {str, int, bool}:
-                    raise ValueError("Codex tool call arguments have invalid values.")
-                typed_arguments[key] = value
-            return ToolCallResponse(ToolCall(str(uuid.uuid4()), name, typed_arguments))
-        raise ValueError("Codex structured output has an unknown kind.")
+            return CodexModelBackend._parse_response_final(decoded)
+        elif kind == "tool_call":
+            return CodexModelBackend._parse_response_tool_call(decoded)
+        else:
+            raise ValueError("Codex structured output has an unknown kind.")
