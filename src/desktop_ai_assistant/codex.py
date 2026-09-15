@@ -84,6 +84,12 @@ class CodexModelBackend:
         self._client.close()
         self._workspace.cleanup()
 
+    def __enter__(self) -> "CodexModelBackend":
+        return self
+
+    def __exit__(self, *exc_info: object) -> None:
+        self.close()
+
     def next_response(
         self, messages: Sequence[Message], tools: Sequence[ToolSchema]
     ) -> ModelResponse:
