@@ -15,7 +15,6 @@ from .registry import ToolSchema
 from .types import (
     FinalResponse,
     Message,
-    MessageRole,
     ModelResponse,
     Primitive,
     ToolCall,
