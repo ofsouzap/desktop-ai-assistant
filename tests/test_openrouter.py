@@ -59,13 +59,13 @@ class FakeClient:
 
 
 def test_maps_final_response() -> None:
-    backend = OpenRouterModelBackend(
-        lambda: FakeClient(FakeResponse([FakeChoice(FakeMessage("Done."))]))
-    )
+    client = FakeClient(FakeResponse([FakeChoice(FakeMessage("Done."))]))
+    backend = OpenRouterModelBackend(lambda: client)
 
     assert backend.next_response([Message(MessageRole.USER, "hello")], []) == FinalResponse(
         "Done."
     )
+    assert "tools" not in client.chat.completions.requests[0]
 
 
 def test_maps_native_tool_call() -> None:

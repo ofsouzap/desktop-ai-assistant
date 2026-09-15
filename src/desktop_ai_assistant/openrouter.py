@@ -72,13 +72,15 @@ class OpenRouterModelBackend:
     def next_response(
         self, messages: Sequence[Message], tools: Sequence[ToolSchema]
     ) -> ModelResponse:
-        response = self._client.chat.completions.create(
-            model=self._model,
-            messages=self._messages(messages),
-            tools=self._tools(tools),
-            tool_choice="auto",
-            parallel_tool_calls=False,
-        )
+        request: dict[str, object] = {
+            "model": self._model,
+            "messages": self._messages(messages),
+        }
+        if tools:
+            request["tools"] = self._tools(tools)
+            request["tool_choice"] = "auto"
+            request["parallel_tool_calls"] = False
+        response = self._client.chat.completions.create(**request)
         return self._response(response)
 
     @staticmethod
