@@ -55,6 +55,9 @@ class AssistantOrchestrator:
                     call = response.tool_call
                     calls.append(call.name)
                     self._log_event("tool_requested", tool_call=call)
+                    self._messages.append(
+                        Message(MessageRole.ASSISTANT, "", tool_call=call)
+                    )
                     result = self._tools.dispatch(call)
                     self._log_event("tool_result", tool_result=result)
                     self._messages.append(

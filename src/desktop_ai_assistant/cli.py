@@ -2,11 +2,7 @@
 
 from __future__ import annotations
 
-import argparse
-
-from openai_codex import Codex
-
-from .codex import CodexModelBackend
+from .openrouter import OpenRouterModelBackend
 from .inventory import INVENTORY_FILENAME, InventoryStore, register_inventory_tools
 from .logging import configure_logging
 from .orchestrator import AssistantOrchestrator
@@ -14,25 +10,7 @@ from .paths import application_paths
 from .registry import ToolRegistry
 
 
-def _login() -> None:
-    with Codex() as codex:
-        if codex.account().account is not None:
-            print("A ChatGPT login is already available.")
-        else:
-            login = codex.login_chatgpt_device_code()
-            print(f"Open {login.verification_url} and enter code: {login.user_code}")
-
-            result = login.wait()
-            if not result.success:
-                raise RuntimeError("ChatGPT login did not complete.")
-            print("ChatGPT login completed.")
-
-
-def command_login() -> None:
-    _login()
-
-
-def command_chat() -> None:
+def main() -> None:
     paths = application_paths()
     paths.ensure_directories()
 
@@ -43,10 +21,11 @@ def command_chat() -> None:
         registry, InventoryStore(paths.data / INVENTORY_FILENAME, logger)
     )
 
-    with CodexModelBackend() as model:
+    model = OpenRouterModelBackend()
+    try:
         assistant = AssistantOrchestrator(model, registry, logger)
 
-        print("Desktop AI Assistant (OpenAI Codex). Type 'quit' to exit.")
+        print("Desktop AI Assistant (OpenRouter). Type 'quit' to exit.")
 
         while True:
             try:
@@ -69,17 +48,8 @@ def command_chat() -> None:
                     print(f"Error: {outcome.error}")
 
                 print(outcome.response)
-
-
-def main() -> None:
-    parser = argparse.ArgumentParser()
-    parser.add_argument("command", choices=("chat", "login"), default="chat", nargs="?")
-    arguments = parser.parse_args()
-
-    if arguments.command == "login":
-        command_login()
-    elif arguments.command == "chat":
-        command_chat()
+    finally:
+        del model
 
 
 if __name__ == "__main__":

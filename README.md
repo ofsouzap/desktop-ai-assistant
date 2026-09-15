@@ -3,7 +3,7 @@
 A security-conscious, typed Python foundation for a personal Linux/Sway desktop
 assistant. It provides a persistent REPL, provider-independent model and tool
 interfaces, strict tool validation, bounded sequential orchestration, XDG paths,
-structured logs, and an OpenAI Codex subscription-backed model adapter.
+structured logs, and an OpenRouter inference-only model adapter.
 
 It deliberately contains no filesystem tool, shell tool, or Sway integration.
 
@@ -17,22 +17,25 @@ pytest
 mypy
 ```
 
-Authenticate once with a ChatGPT subscription:
+Set an OpenRouter API key and optionally choose a currently available free model
+that supports tools:
 
 ```sh
-desktop-ai-assistant login
+export OPENROUTER_API_KEY="..."
+export OPENROUTER_MODEL="google/gemma-4-31b-it:free"
 ```
 
-Then run the REPL:
+`OPENROUTER_MODEL` defaults to `google/gemma-4-31b-it:free`. Free model
+availability changes; use the OpenRouter model catalog to select a free model
+whose `supported_parameters` contains `tools`.
 
 ```sh
 desktop-ai-assistant
 ```
 
-The login command first reuses an existing Codex session; otherwise, it shows a
-device-code URL and code. The Codex runtime retains the resulting session
-locally; no API key is required. The REPL keeps an in-memory conversation for
-its process lifetime. Logs are written as JSON Lines under
+The REPL uses OpenRouter only for inference and native tool-call generation. It
+does not provide the model a local shell, filesystem, or agent runtime. The REPL
+keeps an in-memory conversation for its process lifetime. Logs are written as JSON Lines under
 `$XDG_STATE_HOME/desktop-ai-assistant/logs` (or the standard XDG fallback).
 
 ## Security boundary
