@@ -93,6 +93,8 @@ def test_maps_native_tool_call() -> None:
     assert response.tool_call.arguments == {"text": "tea"}
     assert client.chat.completions.requests[0]["tool_choice"] == "auto"
     assert client.chat.completions.requests[0]["parallel_tool_calls"] is False
+    tool = client.chat.completions.requests[0]["tools"][0]
+    assert tool["function"]["parameters"]["properties"]["text"]["type"] == "string"
 
 
 def test_preserves_tool_calls_in_follow_up_messages() -> None:
@@ -144,3 +146,12 @@ def test_requires_api_key(monkeypatch: pytest.MonkeyPatch) -> None:
 
     with pytest.raises(ValueError, match="OPENROUTER_API_KEY"):
         OpenRouterModelBackend()
+
+
+def test_uses_documented_default_model(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.delenv("OPENROUTER_MODEL", raising=False)
+    backend = OpenRouterModelBackend(
+        lambda: FakeClient(FakeResponse([FakeChoice(FakeMessage("Done."))]))
+    )
+
+    assert backend.identifier == "openrouter:google/gemma-4-31b-it:free"
