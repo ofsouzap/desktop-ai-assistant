@@ -55,6 +55,9 @@ def main() -> None:
 
 def _login() -> None:
     with Codex() as codex:
+        if codex.account().account is not None:
+            print("A ChatGPT login is already available.")
+            return
         login = codex.login_chatgpt_device_code()
         print(f"Open {login.verification_url} and enter code: {login.user_code}")
         result = login.wait()

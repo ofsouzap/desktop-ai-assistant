@@ -29,10 +29,11 @@ Then run the REPL:
 desktop-ai-assistant
 ```
 
-The login command shows a device-code URL and code. The Codex runtime retains
-the resulting session locally; no API key is required. The REPL keeps an
-in-memory conversation for its process lifetime. Logs are written as JSON Lines
-under `$XDG_STATE_HOME/desktop-ai-assistant/logs` (or the standard XDG fallback).
+The login command first reuses an existing Codex session; otherwise, it shows a
+device-code URL and code. The Codex runtime retains the resulting session
+locally; no API key is required. The REPL keeps an in-memory conversation for
+its process lifetime. Logs are written as JSON Lines under
+`$XDG_STATE_HOME/desktop-ai-assistant/logs` (or the standard XDG fallback).
 
 ## Security boundary
 

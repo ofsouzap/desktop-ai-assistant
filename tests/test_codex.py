@@ -5,6 +5,7 @@ from dataclasses import dataclass, field
 import pytest
 
 from desktop_ai_assistant.codex import CodexModelBackend
+from desktop_ai_assistant import cli
 from desktop_ai_assistant.registry import ArgumentSpec, ToolSchema
 from desktop_ai_assistant.types import FinalResponse, Message, MessageRole, ToolCallResponse
 
@@ -82,3 +83,24 @@ def test_rejects_invalid_codex_output(response: str) -> None:
 
     with pytest.raises(ValueError):
         backend.next_response([Message(MessageRole.USER, "hello")], [])
+
+
+def test_login_reuses_existing_account(monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]) -> None:
+    class Account:
+        account = object()
+
+    class LoggedInCodex:
+        def __enter__(self) -> LoggedInCodex:
+            return self
+
+        def __exit__(self, *args: object) -> None:
+            pass
+
+        def account(self) -> Account:
+            return Account()
+
+    monkeypatch.setattr(cli, "Codex", LoggedInCodex)
+
+    cli._login()
+
+    assert capsys.readouterr().out == "A ChatGPT login is already available.\n"
