@@ -14,7 +14,7 @@ from .paths import application_paths
 from .registry import ToolRegistry
 
 
-def command_login() -> None:
+def _login() -> None:
     with Codex() as codex:
         if codex.account().account is not None:
             print("A ChatGPT login is already available.")
@@ -26,6 +26,10 @@ def command_login() -> None:
             if not result.success:
                 raise RuntimeError("ChatGPT login did not complete.")
             print("ChatGPT login completed.")
+
+
+def command_login() -> None:
+    _login()
 
 
 def command_chat() -> None:
