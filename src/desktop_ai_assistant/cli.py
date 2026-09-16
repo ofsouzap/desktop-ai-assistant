@@ -21,35 +21,35 @@ def main() -> None:
         registry, InventoryStore(paths.data / INVENTORY_FILENAME, logger)
     )
 
-    model = OpenRouterModelBackend()
     try:
-        assistant = AssistantOrchestrator(model, registry, logger)
+        model = OpenRouterModelBackend()
+    except ValueError as error:
+        print(f"Error: {error}")
+        return
+    assistant = AssistantOrchestrator(model, registry, logger)
 
-        print("Desktop AI Assistant (OpenRouter). Type 'quit' to exit.")
+    print("Desktop AI Assistant (OpenRouter). Type 'quit' to exit.")
 
-        while True:
-            try:
-                text = input("> ").strip()
-            except (EOFError, KeyboardInterrupt):
-                print()
-                return
+    while True:
+        try:
+            text = input("> ").strip()
+        except (EOFError, KeyboardInterrupt):
+            print()
+            return
 
-            if text.lower().strip() in {"quit", "exit"}:
-                return
-            if not text:
-                continue
-            else:
-                outcome = assistant.handle(text)
+        if text.lower().strip() in {"quit", "exit"}:
+            return
+        if not text:
+            continue
+        outcome = assistant.handle(text)
 
-                for tool_name in outcome.tool_calls:
-                    print(f"[tool] {tool_name}")
+        for tool_name in outcome.tool_calls:
+            print(f"[tool] {tool_name}")
 
-                if outcome.error is not None:
-                    print(f"Error: {outcome.error}")
+        if outcome.error is not None:
+            print(f"Error: {outcome.error}")
 
-                print(outcome.response)
-    finally:
-        del model
+        print(outcome.response)
 
 
 if __name__ == "__main__":

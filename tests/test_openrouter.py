@@ -106,6 +106,29 @@ def test_maps_native_tool_call() -> None:
     assert tool["function"]["parameters"]["properties"]["text"]["type"] == "string"
 
 
+def test_rejects_tool_argument_type_mismatch() -> None:
+    backend = OpenRouterModelBackend(
+        lambda: FakeClient(
+            FakeResponse(
+                [
+                    FakeChoice(
+                        FakeMessage(
+                            None,
+                            [FakeCall("call-1", FakeFunction("count", '{"value":true}'))],
+                        )
+                    )
+                ]
+            )
+        )
+    )
+
+    with pytest.raises(ValueError, match="invalid type"):
+        backend.next_response(
+            [Message(MessageRole.USER, "count")],
+            [ToolSchema("count", "Count.", (ArgumentSpec("value", int, "Value."),))],
+        )
+
+
 def test_preserves_tool_calls_in_follow_up_messages() -> None:
     response = OpenRouterModelBackend._messages(
         [

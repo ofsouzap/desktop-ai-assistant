@@ -81,7 +81,7 @@ class OpenRouterModelBackend:
             request["tool_choice"] = "auto"
             request["parallel_tool_calls"] = False
         response = self._client.chat.completions.create(**request)
-        return self._response(response)
+        return self._response(response, tools)
 
     @staticmethod
     def _messages(messages: Sequence[Message]) -> list[dict[str, object]]:
@@ -157,7 +157,7 @@ class OpenRouterModelBackend:
         return definitions
 
     @staticmethod
-    def _response(response: object) -> ModelResponse:
+    def _response(response: object, tools: Sequence[ToolSchema]) -> ModelResponse:
         try:
             message = response.choices[0].message  # type: ignore[attr-defined]
         except (AttributeError, IndexError) as error:
@@ -173,10 +173,19 @@ class OpenRouterModelBackend:
                 raise ValueError("OpenRouter returned invalid tool arguments.") from error
             if not isinstance(arguments, Mapping):
                 raise ValueError("OpenRouter tool arguments must be an object.")
+            schema = next((tool for tool in tools if tool.name == call.function.name), None)
+            specifications = {} if schema is None else {
+                specification.name: specification for specification in schema.arguments
+            }
             typed_arguments: dict[str, Primitive] = {}
             for key, value in arguments.items():
                 if not isinstance(key, str) or not isinstance(value, (str, int, bool)):
                     raise ValueError("OpenRouter tool call arguments have invalid values.")
+                specification = specifications.get(key)
+                if specification is not None and type(value) is not specification.kind:
+                    raise ValueError(
+                        f"OpenRouter tool argument {key} has an invalid type."
+                    )
                 typed_arguments[key] = value
             return ToolCallResponse(ToolCall(call.id, call.function.name, typed_arguments))
         content = getattr(message, "content", None)
