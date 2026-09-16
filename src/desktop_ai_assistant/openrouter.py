@@ -180,6 +180,6 @@ class OpenRouterModelBackend:
                 typed_arguments[key] = value
             return ToolCallResponse(ToolCall(call.id, call.function.name, typed_arguments))
         content = getattr(message, "content", None)
-        if isinstance(content, str):
+        if isinstance(content, str) and content:
             return FinalResponse(content)
         raise ValueError("OpenRouter returned an empty assistant response.")

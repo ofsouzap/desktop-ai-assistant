@@ -68,6 +68,15 @@ def test_maps_final_response() -> None:
     assert "tools" not in client.chat.completions.requests[0]
 
 
+def test_rejects_empty_final_response() -> None:
+    backend = OpenRouterModelBackend(
+        lambda: FakeClient(FakeResponse([FakeChoice(FakeMessage(""))]))
+    )
+
+    with pytest.raises(ValueError, match="empty assistant response"):
+        backend.next_response([Message(MessageRole.USER, "hello")], [])
+
+
 def test_maps_native_tool_call() -> None:
     client = FakeClient(
         FakeResponse(
