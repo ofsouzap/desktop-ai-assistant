@@ -218,7 +218,10 @@ def test_rejects_invalid_tool_arguments(arguments: str) -> None:
     )
 
     with pytest.raises(ValueError):
-        backend.next_response([Message(MessageRole.USER, "hello")], [])
+        backend.next_response(
+            [Message(MessageRole.USER, "hello")],
+            [ToolSchema("tool", "Test tool.", (ArgumentSpec("bad", str, "Value."),))],
+        )
 
 
 def test_rejects_multiple_tool_calls() -> None:
