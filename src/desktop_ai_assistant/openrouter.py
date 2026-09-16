@@ -197,9 +197,17 @@ class OpenRouterModelBackend:
                 )
             typed_arguments: dict[str, Primitive] = {}
             for key, value in arguments.items():
-                if not isinstance(key, str) or not isinstance(value, (str, int, bool)):
+                if not isinstance(key, str):
                     raise ValueError("OpenRouter tool call arguments have invalid values.")
                 specification = specifications[key]
+                if (
+                    specification.kind is int
+                    and type(value) is float
+                    and value.is_integer()
+                ):
+                    value = int(value)
+                if not isinstance(value, (str, int, bool)):
+                    raise ValueError("OpenRouter tool call arguments have invalid values.")
                 if type(value) is not specification.kind:
                     raise ValueError(
                         f"OpenRouter tool argument {key} has an invalid type."

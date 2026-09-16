@@ -129,6 +129,31 @@ def test_rejects_tool_argument_type_mismatch() -> None:
         )
 
 
+def test_normalizes_integral_tool_argument_number() -> None:
+    backend = OpenRouterModelBackend(
+        lambda: FakeClient(
+            FakeResponse(
+                [
+                    FakeChoice(
+                        FakeMessage(
+                            None,
+                            [FakeCall("call-1", FakeFunction("count", '{"value":1.0}'))],
+                        )
+                    )
+                ]
+            )
+        )
+    )
+
+    response = backend.next_response(
+        [Message(MessageRole.USER, "count")],
+        [ToolSchema("count", "Count.", (ArgumentSpec("value", int, "Value."),))],
+    )
+
+    assert isinstance(response, ToolCallResponse)
+    assert response.tool_call.arguments == {"value": 1}
+
+
 def test_rejects_unknown_tool_name() -> None:
     backend = OpenRouterModelBackend(
         lambda: FakeClient(
