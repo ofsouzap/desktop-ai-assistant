@@ -175,7 +175,7 @@ class OpenRouterModelBackend:
                 raise ValueError("OpenRouter tool arguments must be an object.")
             typed_arguments: dict[str, Primitive] = {}
             for key, value in arguments.items():
-                if not isinstance(key, str) or type(value) not in {str, int, bool}:
+                if not isinstance(key, str) or not isinstance(value, (str, int, bool)):
                     raise ValueError("OpenRouter tool call arguments have invalid values.")
                 typed_arguments[key] = value
             return ToolCallResponse(ToolCall(call.id, call.function.name, typed_arguments))
