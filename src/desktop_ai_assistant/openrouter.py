@@ -174,15 +174,33 @@ class OpenRouterModelBackend:
             if not isinstance(arguments, Mapping):
                 raise ValueError("OpenRouter tool arguments must be an object.")
             schema = next((tool for tool in tools if tool.name == call.function.name), None)
-            specifications = {} if schema is None else {
+            if schema is None:
+                raise ValueError(f"OpenRouter requested unknown tool: {call.function.name}")
+            specifications = {
                 specification.name: specification for specification in schema.arguments
             }
+            unexpected = set(arguments).difference(specifications)
+            if unexpected:
+                raise ValueError(
+                    f"OpenRouter tool call has unexpected argument(s): "
+                    f"{', '.join(sorted(unexpected))}"
+                )
+            missing = [
+                specification.name
+                for specification in schema.arguments
+                if specification.required and specification.name not in arguments
+            ]
+            if missing:
+                raise ValueError(
+                    f"OpenRouter tool call is missing required argument(s): "
+                    f"{', '.join(missing)}"
+                )
             typed_arguments: dict[str, Primitive] = {}
             for key, value in arguments.items():
                 if not isinstance(key, str) or not isinstance(value, (str, int, bool)):
                     raise ValueError("OpenRouter tool call arguments have invalid values.")
-                specification = specifications.get(key)
-                if specification is not None and type(value) is not specification.kind:
+                specification = specifications[key]
+                if type(value) is not specification.kind:
                     raise ValueError(
                         f"OpenRouter tool argument {key} has an invalid type."
                     )

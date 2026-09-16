@@ -129,6 +129,29 @@ def test_rejects_tool_argument_type_mismatch() -> None:
         )
 
 
+def test_rejects_unknown_tool_name() -> None:
+    backend = OpenRouterModelBackend(
+        lambda: FakeClient(
+            FakeResponse(
+                [
+                    FakeChoice(
+                        FakeMessage(
+                            None,
+                            [FakeCall("call-1", FakeFunction("unknown", "{}"))],
+                        )
+                    )
+                ]
+            )
+        )
+    )
+
+    with pytest.raises(ValueError, match="unknown tool"):
+        backend.next_response(
+            [Message(MessageRole.USER, "hello")],
+            [ToolSchema("known", "Known tool.", ())],
+        )
+
+
 def test_preserves_tool_calls_in_follow_up_messages() -> None:
     response = OpenRouterModelBackend._messages(
         [
