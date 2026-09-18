@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import os
+
 from .openrouter import OpenRouterModelBackend
 from .inventory import INVENTORY_FILENAME, InventoryStore, register_inventory_tools
 from .logging import configure_logging
@@ -14,7 +16,8 @@ def main() -> None:
     paths = application_paths()
     paths.ensure_directories()
 
-    logger = configure_logging(paths.state / "logs")
+    console_logging = os.environ.get("DESKTOP_AI_ASSISTANT_CONSOLE_LOGS") == "1"
+    logger = configure_logging(paths.state / "logs", console=console_logging)
 
     registry = ToolRegistry()
     register_inventory_tools(

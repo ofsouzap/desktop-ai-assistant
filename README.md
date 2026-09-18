@@ -29,6 +29,12 @@ export OPENROUTER_MODEL="google/gemma-4-31b-it:free"
 availability changes; use the OpenRouter model catalog to select a free model
 whose `supported_parameters` contains `tools`.
 
+For development, enable error and traceback output in the REPL with:
+
+```sh
+DESKTOP_AI_ASSISTANT_CONSOLE_LOGS=1 desktop-ai-assistant
+```
+
 ```sh
 desktop-ai-assistant
 ```
