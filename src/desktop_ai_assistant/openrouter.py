@@ -229,10 +229,26 @@ class OpenRouterModelBackend:
             raise ValueError("OpenRouter returned no assistant response.") from error
 
         tool_calls = getattr(message, "tool_calls", None)
-        if tool_calls:
-            if len(tool_calls) != 1:
+
+        if not tool_calls:
+            # Final response from the assistant
+
+            content = getattr(message, "content", None)
+            if isinstance(content, str) and content:
+                return FinalResponse(content)
+            raise ValueError("OpenRouter returned an empty assistant response.")
+
+        else:
+            # Tool call from the assistant
+
+            # Get the tool call from the list
+            if len(tool_calls) == 0:
+                assert False  # Should be unreachable
+            elif len(tool_calls) > 1:
                 raise ValueError("OpenRouter returned multiple tool calls.")
             call = tool_calls[0]
+
+            # Extract tool call arguments
             try:
                 arguments: object = json.loads(call.function.arguments)
             except json.JSONDecodeError as error:
@@ -241,6 +257,8 @@ class OpenRouterModelBackend:
                 ) from error
             if not isinstance(arguments, Mapping):
                 raise ValueError("OpenRouter tool arguments must be an object.")
+
+            # Find schema of the tool being called
             schema = next(
                 (tool for tool in tools if tool.name == call.function.name), None
             )
@@ -248,6 +266,8 @@ class OpenRouterModelBackend:
                 raise ValueError(
                     f"OpenRouter requested unknown tool: {call.function.name}"
                 )
+
+            # Validate tool call arguments against schema arguments
             specifications = {
                 specification.name: specification for specification in schema.arguments
             }
@@ -267,19 +287,25 @@ class OpenRouterModelBackend:
                     f"OpenRouter tool call is missing required argument(s): "
                     f"{', '.join(missing)}"
                 )
+
+            # Convert and validate argument types against schema
             typed_arguments: dict[str, Primitive] = {}
             for key, value in arguments.items():
                 if not isinstance(key, str):
                     raise ValueError(
                         "OpenRouter tool call arguments have invalid values."
                     )
+
                 specification = specifications[key]
+
                 if (
                     specification.kind is int
                     and type(value) is float
                     and value.is_integer()
                 ):
+                    # Special case: allow float values that are actually integers
                     value = int(value)
+
                 if not isinstance(value, (str, int, bool)):
                     raise ValueError(
                         "OpenRouter tool call arguments have invalid values."
@@ -288,11 +314,9 @@ class OpenRouterModelBackend:
                     raise ValueError(
                         f"OpenRouter tool argument {key} has an invalid type."
                     )
+
                 typed_arguments[key] = value
+
             return ToolCallResponse(
                 ToolCall(call.id, call.function.name, typed_arguments)
             )
-        content = getattr(message, "content", None)
-        if isinstance(content, str) and content:
-            return FinalResponse(content)
-        raise ValueError("OpenRouter returned an empty assistant response.")
