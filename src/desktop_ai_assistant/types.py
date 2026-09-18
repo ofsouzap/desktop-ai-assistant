@@ -17,17 +17,18 @@ class MessageRole(str, Enum):
 
 
 @dataclass(frozen=True, slots=True)
-class Message:
-    role: MessageRole
-    content: str
-    tool_call_id: str | None = None
-
-
-@dataclass(frozen=True, slots=True)
 class ToolCall:
     id: str
     name: str
     arguments: ToolArguments
+
+
+@dataclass(frozen=True, slots=True)
+class Message:
+    role: MessageRole
+    content: str
+    tool_call_id: str | None = None
+    tool_call: ToolCall | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -48,4 +49,3 @@ class ToolCallResponse:
 
 
 ModelResponse: TypeAlias = FinalResponse | ToolCallResponse
-

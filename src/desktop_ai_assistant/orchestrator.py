@@ -55,6 +55,9 @@ class AssistantOrchestrator:
                     call = response.tool_call
                     calls.append(call.name)
                     self._log_event("tool_requested", tool_call=call)
+                    self._messages.append(
+                        Message(MessageRole.ASSISTANT, "", tool_call=call)
+                    )
                     result = self._tools.dispatch(call)
                     self._log_event("tool_result", tool_result=result)
                     self._messages.append(
@@ -63,8 +66,16 @@ class AssistantOrchestrator:
             message = f"Stopped after {self._maximum_steps} tool calls."
             self._log_event("step_limit_reached", limit=self._maximum_steps)
             return TurnOutcome(message, calls, error=message)
-        except Exception:
-            self._logger.exception("orchestration_failure")
+        except Exception as error:
+            self._logger.exception(
+                "orchestration_failure",
+                extra={
+                    "details": {
+                        "exception_type": type(error).__name__,
+                        "exception_message": str(error),
+                    }
+                },
+            )
             return TurnOutcome(
                 "The assistant encountered a recoverable error. Please try again.",
                 calls,

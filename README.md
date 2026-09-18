@@ -1,12 +1,11 @@
 # Desktop AI Assistant
 
 A security-conscious, typed Python foundation for a personal Linux/Sway desktop
-assistant. Milestone 1 provides a persistent REPL, provider-independent model
-and tool interfaces, strict tool validation, bounded sequential orchestration,
-XDG paths, structured logs, and a scripted model for deterministic testing.
+assistant. It provides a persistent REPL, provider-independent model and tool
+interfaces, strict tool validation, bounded sequential orchestration, XDG paths,
+structured logs, and an OpenRouter inference-only model adapter.
 
-It deliberately contains **no** live model provider, filesystem tool, shell
-tool, inventory implementation, or Sway integration yet.
+It deliberately contains no filesystem tool, shell tool, or Sway integration.
 
 ## Development
 
@@ -18,17 +17,32 @@ pytest
 mypy
 ```
 
-Run the Milestone 1 mock REPL:
+Set an OpenRouter API key and optionally choose a currently available free model
+that supports tools:
+
+```sh
+export OPENROUTER_API_KEY="..."
+export OPENROUTER_MODEL="google/gemma-4-31b-it:free"
+```
+
+`OPENROUTER_MODEL` defaults to `google/gemma-4-31b-it:free`. Free model
+availability changes; use the OpenRouter model catalog to select a free model
+whose `supported_parameters` contains `tools`.
+
+For development, enable error and traceback output in the REPL with:
+
+```sh
+DESKTOP_AI_ASSISTANT_CONSOLE_LOGS=1 desktop-ai-assistant
+```
 
 ```sh
 desktop-ai-assistant
 ```
 
-The REPL keeps an in-memory conversation for its process lifetime. The current
-scripted backend has no configured responses; it exists to verify the
-architecture and support deterministic tests. Logs are written as JSON Lines
-under `$XDG_STATE_HOME/desktop-ai-assistant/logs` (or the standard XDG
-fallback).
+The REPL uses OpenRouter only for inference and native tool-call generation. It
+does not provide the model a local shell, filesystem, or agent runtime. The REPL
+keeps an in-memory conversation for its process lifetime. Logs are written as JSON Lines under
+`$XDG_STATE_HOME/desktop-ai-assistant/logs` (or the standard XDG fallback).
 
 ## Security boundary
 

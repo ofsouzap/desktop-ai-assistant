@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import logging
+import sys
 from dataclasses import asdict, is_dataclass
 from datetime import datetime, timezone
 from pathlib import Path
@@ -31,7 +32,7 @@ def _json_default(value: object) -> object:
     return str(value)
 
 
-def configure_logging(log_directory: Path) -> logging.Logger:
+def configure_logging(log_directory: Path, *, console: bool = False) -> logging.Logger:
     log_directory.mkdir(parents=True, exist_ok=True)
     logger = logging.getLogger("desktop_ai_assistant")
     logger.setLevel(logging.DEBUG)
@@ -39,6 +40,11 @@ def configure_logging(log_directory: Path) -> logging.Logger:
     handler = logging.FileHandler(log_directory / "assistant.jsonl", encoding="utf-8")
     handler.setFormatter(JsonLineFormatter())
     logger.addHandler(handler)
+    if console:
+        console_handler = logging.StreamHandler(sys.stderr)
+        console_handler.setLevel(logging.ERROR)
+        console_handler.setFormatter(JsonLineFormatter())
+        logger.addHandler(console_handler)
     logger.propagate = False
     return logger
 
