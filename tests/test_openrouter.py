@@ -1,10 +1,11 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from typing import cast
 
 import pytest
 
-from desktop_ai_assistant.openrouter import OpenRouterModelBackend
+from desktop_ai_assistant.openrouter import OpenRouterModelBackend, _OpenRouterRequest
 from desktop_ai_assistant.registry import ArgumentSpec, ToolSchema
 from desktop_ai_assistant.types import (
     FinalResponse,
@@ -46,16 +47,21 @@ class FakeResponse:
 class FakeCompletions:
     def __init__(self, response: object) -> None:
         self.response = response
-        self.requests: list[dict[str, object]] = []
+        self.requests: list[_OpenRouterRequest] = []
 
     def create(self, **kwargs: object) -> object:
-        self.requests.append(kwargs)
+        self.requests.append(cast(_OpenRouterRequest, kwargs))
         return self.response
+
+
+class FakeChat:
+    def __init__(self, response: object) -> None:
+        self.completions = FakeCompletions(response)
 
 
 class FakeClient:
     def __init__(self, response: object) -> None:
-        self.chat = type("Chat", (), {"completions": FakeCompletions(response)})()
+        self.chat = FakeChat(response)
 
 
 def test_maps_final_response() -> None:
@@ -191,14 +197,14 @@ def test_preserves_tool_calls_in_follow_up_messages() -> None:
     )
 
     assert response[1]["role"] == "user"
-    assert response[2]["tool_calls"] == [
+    assert response[2].get("tool_calls") == [
         {
             "id": "call-1",
             "type": "function",
             "function": {"name": "inventory_append", "arguments": '{"text": "tea"}'},
         }
     ]
-    assert response[3]["tool_call_id"] == "call-1"
+    assert response[3].get("tool_call_id") == "call-1"
 
 
 @pytest.mark.parametrize("arguments", ["not json", "[]", '{"bad":[]}'])

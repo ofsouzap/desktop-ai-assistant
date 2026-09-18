@@ -97,11 +97,13 @@ class _Completions(Protocol):
 
 
 class _Chat(Protocol):
-    completions: _Completions
+    @property
+    def completions(self) -> _Completions: ...
 
 
 class _OpenRouterClient(Protocol):
-    chat: _Chat
+    @property
+    def chat(self) -> _Chat: ...
 
 
 class OpenRouterModelBackend:
