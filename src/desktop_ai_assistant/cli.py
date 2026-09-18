@@ -10,6 +10,7 @@ from .logging import configure_logging
 from .orchestrator import AssistantOrchestrator
 from .paths import application_paths
 from .registry import ToolRegistry
+from .sway import SwayAdapter, register_sway_tools
 
 
 def main() -> None:
@@ -23,6 +24,7 @@ def main() -> None:
     register_inventory_tools(
         registry, InventoryStore(paths.data / INVENTORY_FILENAME, logger)
     )
+    register_sway_tools(registry, SwayAdapter(logger))
 
     try:
         model = OpenRouterModelBackend()
