@@ -106,9 +106,12 @@ def test_maps_native_tool_call() -> None:
     assert isinstance(response, ToolCallResponse)
     assert response.tool_call.id == "call-1"
     assert response.tool_call.arguments == {"text": "tea"}
-    assert client.chat.completions.requests[0]["tool_choice"] == "auto"
-    assert client.chat.completions.requests[0]["parallel_tool_calls"] is False
-    tool = client.chat.completions.requests[0]["tools"][0]
+    request = client.chat.completions.requests[0]
+    assert request.get("tool_choice") == "auto"
+    assert request.get("parallel_tool_calls") is False
+    tools = request.get("tools")
+    assert tools is not None
+    tool = tools[0]
     assert tool["function"]["parameters"]["properties"]["text"]["type"] == "string"
 
 
