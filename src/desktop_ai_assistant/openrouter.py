@@ -190,11 +190,13 @@ class OpenRouterModelBackend:
                     raise ValueError(
                         f"Tool argument {argument.name} has an unsupported type."
                     )
+
                 argument_schema: _ToolArgumentSchema = {
                     "type": json_schema_type,
                     "description": argument.description,
                 }
                 properties[argument.name] = argument_schema
+
             definitions.append(
                 {
                     "type": "function",
@@ -214,6 +216,7 @@ class OpenRouterModelBackend:
                     },
                 }
             )
+
         return definitions
 
     @staticmethod
