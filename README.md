@@ -31,6 +31,25 @@ export OPENROUTER_MODEL="google/gemma-4-31b-it:free"
 availability changes; use the OpenRouter model catalog to select a free model
 whose `supported_parameters` contains `tools`.
 
+## Behavioral evaluations
+
+Run the deterministic inventory and mocked-Sway checks without credentials:
+
+```sh
+python -m desktop_ai_assistant.evaluation --scripted --output /tmp/evaluation-traces.json
+```
+
+To evaluate the configured OpenRouter model against the same scenarios, omit
+`--scripted`. The command writes complete JSON traces, including the prompt,
+conversation, tool calls, response, errors, and objective checks. A non-zero
+exit status means at least one objective check failed; qualitative `REVIEW`
+results should be inspected rather than reduced to a single score.
+
+When handing a trace to a coding agent, provide the JSON file and ask it to
+review each scenario's tool sequence, arguments, normalized tool results,
+final response, and objective checks separately. Distinguish model-planning
+failures from tool/API or orchestration failures before changing code.
+
 For development, enable error and traceback output in the REPL with:
 
 ```sh

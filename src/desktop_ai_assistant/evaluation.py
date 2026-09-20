@@ -14,7 +14,6 @@ from typing import Callable, Sequence
 from .integrations.inventory import InventoryStore, register_inventory_tools
 from .integrations.sway import SwayAdapter, register_sway_tools
 from .model import ModelBackend, ScriptedModelBackend
-from .openrouter import OpenRouterModelBackend
 from .orchestrator import AssistantOrchestrator, TurnOutcome
 from .registry import ToolRegistry
 from .types import FinalResponse, Message, ToolCall, ToolCallResponse
@@ -30,6 +29,7 @@ class EvaluationTrace:
     error: str | None
     objective_checks: dict[str, bool]
     messages: list[Message]
+    qualitative_review: bool = False
 
     @property
     def passed(self) -> bool:
@@ -44,8 +44,9 @@ class _Scenario:
     name: str
     prompt: str
     scripted_responses: Sequence[FinalResponse | ToolCallResponse]
-    expected_tool_calls: list[str]
+    expected_tool_calls: list[str] | None
     checks: Callable[[TurnOutcome], dict[str, bool]]
+    qualitative_review: bool = False
 
 
 def _inventory_scenario() -> _Scenario:
@@ -90,6 +91,17 @@ def _sway_scenario() -> _Scenario:
     )
 
 
+def _qualitative_scenario() -> _Scenario:
+    return _Scenario(
+        "capability_boundary_explanation",
+        "What kinds of desktop actions can you safely help with?",
+        (FinalResponse("I can use the listed inventory and constrained Sway tools."),),
+        None,
+        lambda outcome: {"final_response_is_nonempty": bool(outcome.response.strip())},
+        qualitative_review=True,
+    )
+
+
 class _MockSway:
     def __init__(self) -> None:
         self.workspace_by_window = {11: "2:web", 22: "1:code"}
@@ -99,7 +111,7 @@ class _MockSway:
         self, command: list[str], **_: object
     ) -> subprocess.CompletedProcess[str]:
         if command[1:] == ["-t", "get_tree"]:
-            windows = [
+            windows: list[dict[str, object]] = [
                 {
                     "type": "con",
                     "id": window_id,
@@ -117,7 +129,8 @@ class _MockSway:
                     {"type": "workspace", "name": workspace, "nodes": [window], "floating_nodes": []}
                     for workspace in {"2:web", "1:code"}
                     for window in windows
-                    if self.workspace_by_window[window["id"]] == workspace
+                    if isinstance(window["id"], int)
+                    and self.workspace_by_window[window["id"]] == workspace
                 ],
                 "floating_nodes": [],
             }
@@ -157,7 +170,8 @@ def _run_scenario(
         scenario.prompt
     )
     checks = scenario.checks(outcome)
-    checks["expected_tool_calls"] = outcome.tool_calls == scenario.expected_tool_calls
+    if scenario.expected_tool_calls is not None:
+        checks["expected_tool_calls"] = outcome.tool_calls == scenario.expected_tool_calls
     return EvaluationTrace(
         scenario.name,
         scenario.prompt,
@@ -167,6 +181,7 @@ def _run_scenario(
         outcome.error,
         checks,
         outcome.messages,
+        scenario.qualitative_review,
     )
 
 
@@ -201,6 +216,14 @@ def run_scripted_evaluations() -> list[EvaluationTrace]:
     traces[-1].objective_checks["mock_state_updated"] = (
         sway_state.workspace_by_window[22] == "2:web" and sway_state.focused_window == 22
     )
+    qualitative = _qualitative_scenario()
+    traces.append(
+        _run_scenario(
+            qualitative,
+            ScriptedModelBackend(qualitative.scripted_responses),
+            sway_registry,
+        )
+    )
     return traces
 
 
@@ -221,6 +244,7 @@ def run_model_evaluations(model: ModelBackend) -> list[EvaluationTrace]:
         SwayAdapter(logging.getLogger("evaluation"), runner=sway_state.run),
     )
     traces.append(_run_scenario(_sway_scenario(), model, sway_registry))
+    traces.append(_run_scenario(_qualitative_scenario(), model, sway_registry))
     return traces
 
 
@@ -237,11 +261,12 @@ def main(argv: Sequence[str] | None = None) -> int:
     parser.add_argument("--scripted", action="store_true", help="avoid credentials and network access")
     parser.add_argument("--output", type=Path, default=Path("evaluation-traces.json"))
     arguments = parser.parse_args(argv)
-    traces = (
-        run_scripted_evaluations()
-        if arguments.scripted
-        else run_model_evaluations(OpenRouterModelBackend())
-    )
+    if arguments.scripted:
+        traces = run_scripted_evaluations()
+    else:
+        from .openrouter import OpenRouterModelBackend
+
+        traces = run_model_evaluations(OpenRouterModelBackend())
     _write_traces(traces, arguments.output)
     for trace in traces:
         print(f"{trace.scenario}: {'PASS' if trace.passed else 'REVIEW'}")
