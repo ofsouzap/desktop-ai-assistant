@@ -56,15 +56,15 @@ def run_scenario(
     if scenario.expected_tool_calls is not None:
         checks["expected_tool_calls"] = outcome.tool_calls == scenario.expected_tool_calls
     return EvaluationTrace(
-        scenario.name,
-        scenario.prompt,
-        model.identifier,
-        outcome.response,
-        outcome.tool_calls,
-        outcome.error,
-        checks,
-        outcome.messages,
-        scenario.qualitative_review,
+        scenario=scenario.name,
+        prompt=scenario.prompt,
+        model=model.identifier,
+        response=outcome.response,
+        tool_calls=outcome.tool_calls,
+        error=outcome.error,
+        objective_checks=checks,
+        messages=outcome.messages,
+        qualitative_review=scenario.qualitative_review,
     )
 
 
