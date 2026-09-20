@@ -8,9 +8,9 @@ import subprocess
 from dataclasses import asdict, dataclass
 from typing import Any, Callable, Mapping, Sequence
 
-from .logging import log_event
-from .registry import ArgumentSpec, ToolExecutionError, ToolRegistry
-from .types import ToolArguments
+from ...logging import log_event
+from ...registry import ArgumentSpec, ToolExecutionError, ToolRegistry
+from ...types import ToolArguments
 
 
 class SwayError(ToolExecutionError):
