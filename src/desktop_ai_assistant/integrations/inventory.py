@@ -5,9 +5,9 @@ from __future__ import annotations
 import logging
 from pathlib import Path
 
-from ...logging import log_event
-from ...registry import ArgumentSpec, ToolExecutionError, ToolRegistry
-from ...types import ToolArguments
+from ..logging import log_event
+from ..registry import ArgumentSpec, ToolExecutionError, ToolRegistry
+from ..types import ToolArguments
 
 INVENTORY_FILENAME = "inventory.txt"
 
