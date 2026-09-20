@@ -3,9 +3,11 @@
 A security-conscious, typed Python foundation for a personal Linux/Sway desktop
 assistant. It provides a persistent REPL, provider-independent model and tool
 interfaces, strict tool validation, bounded sequential orchestration, XDG paths,
-structured logs, and an OpenRouter inference-only model adapter.
+structured logs, an OpenRouter inference-only model adapter, and constrained Sway
+window/workspace tools.
 
-It deliberately contains no filesystem tool, shell tool, or Sway integration.
+It deliberately contains no filesystem tool, shell tool, or arbitrary Sway command
+tool. Sway actions use concrete window IDs and named workspaces.
 
 ## Development
 
@@ -40,8 +42,9 @@ desktop-ai-assistant
 ```
 
 The REPL uses OpenRouter only for inference and native tool-call generation. It
-does not provide the model a local shell, filesystem, or agent runtime. The REPL
-keeps an in-memory conversation for its process lifetime. Logs are written as JSON Lines under
+does not provide the model a local shell, filesystem, arbitrary Sway command, or
+agent runtime. The REPL keeps an in-memory conversation for its process lifetime.
+Logs are written as JSON Lines under
 `$XDG_STATE_HOME/desktop-ai-assistant/logs` (or the standard XDG fallback).
 
 ## Security boundary
