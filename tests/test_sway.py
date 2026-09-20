@@ -9,7 +9,9 @@ from desktop_ai_assistant.sway import SwayAdapter, SwayError, register_sway_tool
 from desktop_ai_assistant.types import ToolCall
 
 
-def completed(stdout: str = "", returncode: int = 0, stderr: str = "") -> subprocess.CompletedProcess[str]:
+def completed(
+    stdout: str = "", returncode: int = 0, stderr: str = ""
+) -> subprocess.CompletedProcess[str]:
     return subprocess.CompletedProcess(["swaymsg"], returncode, stdout, stderr)
 
 
@@ -40,11 +42,25 @@ def test_normalizes_tree_windows_and_workspaces() -> None:
                 }
             )
         ),
-        completed(json.dumps([{"num": 2, "name": "2:web", "focused": True, "visible": True, "urgent": False}])),
+        completed(
+            json.dumps(
+                [
+                    {
+                        "num": 2,
+                        "name": "2:web",
+                        "focused": True,
+                        "visible": True,
+                        "urgent": False,
+                    }
+                ]
+            )
+        ),
     ]
     commands: list[list[str]] = []
 
-    def runner(command: list[str], **kwargs: object) -> subprocess.CompletedProcess[str]:
+    def runner(
+        command: list[str], **kwargs: object
+    ) -> subprocess.CompletedProcess[str]:
         commands.append(command)
         return responses.pop(0)
 
@@ -52,13 +68,18 @@ def test_normalizes_tree_windows_and_workspaces() -> None:
     assert adapter.list_windows()[0].workspace == "2:web"
     workspaces = adapter.list_workspaces()
     assert workspaces[0].name == "2:web"
-    assert commands == [["swaymsg", "-t", "get_tree"], ["swaymsg", "-t", "get_workspaces"]]
+    assert commands == [
+        ["swaymsg", "-t", "get_tree"],
+        ["swaymsg", "-t", "get_workspaces"],
+    ]
 
 
 def test_constructs_safe_write_commands() -> None:
     commands: list[list[str]] = []
 
-    def runner(command: list[str], **kwargs: object) -> subprocess.CompletedProcess[str]:
+    def runner(
+        command: list[str], **kwargs: object
+    ) -> subprocess.CompletedProcess[str]:
         commands.append(command)
         return completed()
 
@@ -77,7 +98,9 @@ def test_constructs_safe_write_commands() -> None:
 
 @pytest.mark.parametrize("window_id", [0, -1, True])
 def test_rejects_invalid_window_id(window_id: int) -> None:
-    adapter = SwayAdapter(logging.getLogger("test"), runner=lambda *args, **kwargs: completed())
+    adapter = SwayAdapter(
+        logging.getLogger("test"), runner=lambda *args, **kwargs: completed()
+    )
     with pytest.raises(SwayError, match="positive integer"):
         adapter.focus_window(window_id)
 
@@ -101,7 +124,9 @@ def test_normalizes_subprocess_and_json_failures() -> None:
 def test_registers_all_sway_tools_and_dispatches_validation() -> None:
     commands: list[list[str]] = []
 
-    def runner(command: list[str], **kwargs: object) -> subprocess.CompletedProcess[str]:
+    def runner(
+        command: list[str], **kwargs: object
+    ) -> subprocess.CompletedProcess[str]:
         commands.append(command)
         if command[1:] == ["-t", "get_workspaces"]:
             return completed("[]")

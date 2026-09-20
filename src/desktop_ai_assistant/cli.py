@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import os
+import subprocess
 
 from .openrouter import OpenRouterModelBackend
 from .inventory import INVENTORY_FILENAME, InventoryStore, register_inventory_tools
@@ -24,7 +25,7 @@ def main() -> None:
     register_inventory_tools(
         registry, InventoryStore(paths.data / INVENTORY_FILENAME, logger)
     )
-    register_sway_tools(registry, SwayAdapter(logger))
+    register_sway_tools(registry, SwayAdapter(logger, runner=subprocess.run))
 
     try:
         model = OpenRouterModelBackend()

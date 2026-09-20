@@ -45,7 +45,7 @@ class SwayAdapter:
     def __init__(
         self,
         logger: logging.Logger,
-        runner: Runner = subprocess.run,
+        runner: Runner,
         command: str = "swaymsg",
     ) -> None:
         self._logger = logger
@@ -101,7 +101,9 @@ class SwayAdapter:
         )
 
     def _query_json(self, arguments: Sequence[str]) -> Any:
-        completed = self._run(["-t", *arguments[1:]] if arguments[:1] == ("-t",) else arguments)
+        completed = self._run(
+            ["-t", *arguments[1:]] if arguments[:1] == ("-t",) else arguments
+        )
         if completed.returncode != 0:
             raise SwayError(self._failure_message(completed))
         try:
@@ -115,9 +117,18 @@ class SwayAdapter:
     def _run(self, arguments: Sequence[str]) -> subprocess.CompletedProcess[str]:
         command = [self._command, *arguments]
         log_event(self._logger, "sway_command_requested", command=command)
+
         try:
             completed = self._runner(
-                command, capture_output=True, text=True, check=False, timeout=10
+                command, capture_output=True, text=True, check=False, timeout=3
+            )
+            log_event(
+                self._logger,
+                "sway_command_completed",
+                command=command,
+                returncode=completed.returncode,
+                stdout=completed.stdout,
+                stderr=completed.stderr,
             )
         except FileNotFoundError as error:
             raise SwayError("The swaymsg executable was not found.") from error
@@ -125,14 +136,7 @@ class SwayAdapter:
             raise SwayError("Sway did not respond before the timeout.") from error
         except OSError as error:
             raise SwayError("Unable to communicate with Sway.") from error
-        log_event(
-            self._logger,
-            "sway_command_completed",
-            command=command,
-            returncode=completed.returncode,
-            stdout=completed.stdout,
-            stderr=completed.stderr,
-        )
+
         return completed
 
     @staticmethod
@@ -148,7 +152,12 @@ class SwayAdapter:
 
     @staticmethod
     def _validate_workspace(workspace: str) -> None:
-        if not workspace or "\x00" in workspace or "\n" in workspace or "\r" in workspace:
+        if (
+            not workspace
+            or "\x00" in workspace
+            or "\n" in workspace
+            or "\r" in workspace
+        ):
             raise SwayError("Workspace must be a non-empty single-line name.")
 
     @staticmethod
@@ -166,6 +175,7 @@ class SwayAdapter:
         if node_type == "workspace":
             name = node.get("name")
             current_workspace = str(name) if name is not None else None
+
         children = node.get("nodes", [])
         floating = node.get("floating_nodes", [])
         if isinstance(children, list):
@@ -174,17 +184,21 @@ class SwayAdapter:
         if isinstance(floating, list):
             for child in floating:
                 cls._collect_windows(child, current_workspace, windows)
+
         if node_type not in {"con", "floating_con"} or children or floating:
             return
+
         try:
             window_id = int(node["id"])
         except (KeyError, TypeError, ValueError):
             return
+
         properties = node.get("window_properties")
         window_properties = properties if isinstance(properties, Mapping) else {}
         app_id = node.get("app_id")
         class_name = window_properties.get("class")
         title = node.get("name")
+
         windows.append(
             SwayWindow(
                 id=window_id,
@@ -200,15 +214,26 @@ class SwayAdapter:
 def register_sway_tools(registry: ToolRegistry, adapter: SwayAdapter) -> None:
     """Register the fixed, structured Sway capability set."""
 
-    @registry.register("list_windows", "List open windows with IDs, applications, titles, workspaces, and focus.")
+    @registry.register(
+        "list_windows",
+        "List open windows with IDs, applications, titles, workspaces, and focus.",
+    )
     def list_windows(arguments: ToolArguments) -> str:
         return json.dumps([asdict(window) for window in adapter.list_windows()])
 
-    @registry.register("list_workspaces", "List Sway workspaces and their focus, visibility, and urgency.")
+    @registry.register(
+        "list_workspaces",
+        "List Sway workspaces and their focus, visibility, and urgency.",
+    )
     def list_workspaces(arguments: ToolArguments) -> str:
-        return json.dumps([asdict(workspace) for workspace in adapter.list_workspaces()])
+        return json.dumps(
+            [asdict(workspace) for workspace in adapter.list_workspaces()]
+        )
 
-    @registry.register("get_focused_window", "Return the currently focused window, or indicate that none is focused.")
+    @registry.register(
+        "get_focused_window",
+        "Return the currently focused window, or indicate that none is focused.",
+    )
     def get_focused_window(arguments: ToolArguments) -> str:
         window = adapter.get_focused_window()
         return json.dumps(asdict(window) if window is not None else None)
@@ -231,7 +256,9 @@ def register_sway_tools(registry: ToolRegistry, adapter: SwayAdapter) -> None:
         ),
     )
     def move_window_to_workspace(arguments: ToolArguments) -> str:
-        adapter.move_window_to_workspace(int(arguments["window_id"]), str(arguments["workspace"]))
+        adapter.move_window_to_workspace(
+            int(arguments["window_id"]), str(arguments["workspace"])
+        )
         return "Window moved."
 
     @registry.register(
