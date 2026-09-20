@@ -36,7 +36,7 @@ whose `supported_parameters` contains `tools`.
 Run the deterministic inventory and mocked-Sway checks without credentials:
 
 ```sh
-python -m desktop_ai_assistant.evaluation --scripted --output /tmp/evaluation-traces.json
+python -m evaluation --scripted --output /tmp/evaluation-traces.json
 ```
 
 To evaluate the configured OpenRouter model against the same scenarios, omit

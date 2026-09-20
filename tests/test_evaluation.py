@@ -1,6 +1,6 @@
 import json
 
-from desktop_ai_assistant.evaluation import run_scripted_evaluations
+from evaluation import run_scripted_evaluations
 
 
 def test_scripted_evaluations_cover_inventory_and_sway() -> None:

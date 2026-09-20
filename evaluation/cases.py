@@ -1,56 +1,25 @@
-"""Small, repeatable behavioral evaluations for the assistant."""
+"""Concrete inventory, Sway, and qualitative evaluation scenarios."""
 
 from __future__ import annotations
 
-import argparse
 import json
 import logging
 import subprocess
-from dataclasses import asdict, dataclass
 from pathlib import Path
 from tempfile import TemporaryDirectory
-from typing import Callable, Sequence
 
-from .integrations.inventory import InventoryStore, register_inventory_tools
-from .integrations.sway import SwayAdapter, register_sway_tools
-from .model import ModelBackend, ScriptedModelBackend
-from .orchestrator import AssistantOrchestrator, TurnOutcome
-from .registry import ToolRegistry
-from .types import FinalResponse, Message, ToolCall, ToolCallResponse
+from desktop_ai_assistant.integrations.inventory import InventoryStore, register_inventory_tools
+from desktop_ai_assistant.integrations.sway import SwayAdapter, register_sway_tools
+from desktop_ai_assistant.model import ModelBackend, ScriptedModelBackend
+from desktop_ai_assistant.registry import ToolRegistry
+from desktop_ai_assistant.orchestrator import TurnOutcome
+from desktop_ai_assistant.types import FinalResponse, ToolCall, ToolCallResponse
 
-
-@dataclass(frozen=True, slots=True)
-class EvaluationTrace:
-    scenario: str
-    prompt: str
-    model: str
-    response: str
-    tool_calls: list[str]
-    error: str | None
-    objective_checks: dict[str, bool]
-    messages: list[Message]
-    qualitative_review: bool = False
-
-    @property
-    def passed(self) -> bool:
-        return self.error is None and all(self.objective_checks.values())
-
-    def as_json(self) -> str:
-        return json.dumps(asdict(self), default=str, indent=2, sort_keys=True)
+from .framework import EvaluationTrace, Scenario, run_scenario
 
 
-@dataclass(frozen=True, slots=True)
-class _Scenario:
-    name: str
-    prompt: str
-    scripted_responses: Sequence[FinalResponse | ToolCallResponse]
-    expected_tool_calls: list[str] | None
-    checks: Callable[[TurnOutcome], dict[str, bool]]
-    qualitative_review: bool = False
-
-
-def _inventory_scenario() -> _Scenario:
-    return _Scenario(
+def _inventory_scenario() -> Scenario:
+    return Scenario(
         "inventory_remember_and_confirm",
         "Remember that tea is in the kitchen, then confirm it.",
         (
@@ -66,8 +35,8 @@ def _inventory_scenario() -> _Scenario:
     )
 
 
-def _sway_scenario() -> _Scenario:
-    return _Scenario(
+def _sway_scenario() -> Scenario:
+    return Scenario(
         "sway_move_and_focus",
         "Find Firefox and VS Code, move VS Code to Firefox's workspace, and focus it.",
         (
@@ -91,8 +60,8 @@ def _sway_scenario() -> _Scenario:
     )
 
 
-def _qualitative_scenario() -> _Scenario:
-    return _Scenario(
+def _qualitative_scenario() -> Scenario:
+    return Scenario(
         "capability_boundary_explanation",
         "What kinds of desktop actions can you safely help with?",
         (FinalResponse("I can use the listed inventory and constrained Sway tools."),),
@@ -161,69 +130,28 @@ class _MockSway:
         return subprocess.CompletedProcess(command, 0, "", "")
 
 
-def _run_scenario(
-    scenario: _Scenario,
-    model: ModelBackend,
-    registry: ToolRegistry,
-) -> EvaluationTrace:
-    outcome = AssistantOrchestrator(model, registry, logging.getLogger("evaluation")).handle(
-        scenario.prompt
-    )
-    checks = scenario.checks(outcome)
-    if scenario.expected_tool_calls is not None:
-        checks["expected_tool_calls"] = outcome.tool_calls == scenario.expected_tool_calls
-    return EvaluationTrace(
-        scenario.name,
-        scenario.prompt,
-        model.identifier,
-        outcome.response,
-        outcome.tool_calls,
-        outcome.error,
-        checks,
-        outcome.messages,
-        scenario.qualitative_review,
-    )
-
-
 def run_scripted_evaluations() -> list[EvaluationTrace]:
     """Run deterministic checks without credentials or a Sway session."""
     traces: list[EvaluationTrace] = []
     with TemporaryDirectory() as directory:
-        inventory_registry = ToolRegistry()
+        registry = ToolRegistry()
         register_inventory_tools(
-            inventory_registry,
+            registry,
             InventoryStore(Path(directory) / "inventory.txt", logging.getLogger("evaluation")),
         )
-        inventory = _inventory_scenario()
-        traces.append(
-            _run_scenario(
-                inventory,
-                ScriptedModelBackend(inventory.scripted_responses),
-                inventory_registry,
-            )
-        )
+        scenario = _inventory_scenario()
+        traces.append(run_scenario(scenario, ScriptedModelBackend(scenario.scripted_responses), registry))
 
     sway_state = _MockSway()
-    sway_registry = ToolRegistry()
-    register_sway_tools(
-        sway_registry,
-        SwayAdapter(logging.getLogger("evaluation"), runner=sway_state.run),
-    )
-    sway = _sway_scenario()
-    traces.append(
-        _run_scenario(sway, ScriptedModelBackend(sway.scripted_responses), sway_registry)
-    )
+    registry = ToolRegistry()
+    register_sway_tools(registry, SwayAdapter(logging.getLogger("evaluation"), runner=sway_state.run))
+    scenario = _sway_scenario()
+    traces.append(run_scenario(scenario, ScriptedModelBackend(scenario.scripted_responses), registry))
     traces[-1].objective_checks["mock_state_updated"] = (
         sway_state.workspace_by_window[22] == "2:web" and sway_state.focused_window == 22
     )
-    qualitative = _qualitative_scenario()
-    traces.append(
-        _run_scenario(
-            qualitative,
-            ScriptedModelBackend(qualitative.scripted_responses),
-            sway_registry,
-        )
-    )
+    scenario = _qualitative_scenario()
+    traces.append(run_scenario(scenario, ScriptedModelBackend(scenario.scripted_responses), registry))
     return traces
 
 
@@ -236,42 +164,9 @@ def run_model_evaluations(model: ModelBackend) -> list[EvaluationTrace]:
             registry,
             InventoryStore(Path(directory) / "inventory.txt", logging.getLogger("evaluation")),
         )
-        traces.append(_run_scenario(_inventory_scenario(), model, registry))
-    sway_registry = ToolRegistry()
-    sway_state = _MockSway()
-    register_sway_tools(
-        sway_registry,
-        SwayAdapter(logging.getLogger("evaluation"), runner=sway_state.run),
-    )
-    traces.append(_run_scenario(_sway_scenario(), model, sway_registry))
-    traces.append(_run_scenario(_qualitative_scenario(), model, sway_registry))
+        traces.append(run_scenario(_inventory_scenario(), model, registry))
+    registry = ToolRegistry()
+    register_sway_tools(registry, SwayAdapter(logging.getLogger("evaluation"), runner=_MockSway().run))
+    traces.append(run_scenario(_sway_scenario(), model, registry))
+    traces.append(run_scenario(_qualitative_scenario(), model, registry))
     return traces
-
-
-def _write_traces(traces: Sequence[EvaluationTrace], output: Path) -> None:
-    output.parent.mkdir(parents=True, exist_ok=True)
-    output.write_text(
-        json.dumps([asdict(trace) for trace in traces], default=str, indent=2, sort_keys=True),
-        encoding="utf-8",
-    )
-
-
-def main(argv: Sequence[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--scripted", action="store_true", help="avoid credentials and network access")
-    parser.add_argument("--output", type=Path, default=Path("evaluation-traces.json"))
-    arguments = parser.parse_args(argv)
-    if arguments.scripted:
-        traces = run_scripted_evaluations()
-    else:
-        from .openrouter import OpenRouterModelBackend
-
-        traces = run_model_evaluations(OpenRouterModelBackend())
-    _write_traces(traces, arguments.output)
-    for trace in traces:
-        print(f"{trace.scenario}: {'PASS' if trace.passed else 'REVIEW'}")
-    return 0 if all(trace.passed for trace in traces) else 1
-
-
-if __name__ == "__main__":
-    raise SystemExit(main())
