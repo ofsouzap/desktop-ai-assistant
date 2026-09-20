@@ -2,7 +2,10 @@ import logging
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
-from desktop_ai_assistant.inventory import InventoryStore, register_inventory_tools
+from desktop_ai_assistant.integrations.tools.inventory import (
+    InventoryStore,
+    register_inventory_tools,
+)
 from desktop_ai_assistant.model import ScriptedModelBackend
 from desktop_ai_assistant.orchestrator import AssistantOrchestrator
 from desktop_ai_assistant.registry import ToolRegistry

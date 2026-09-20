@@ -6,12 +6,16 @@ import os
 import subprocess
 
 from .openrouter import OpenRouterModelBackend
-from .inventory import INVENTORY_FILENAME, InventoryStore, register_inventory_tools
+from .integrations.tools.inventory import (
+    INVENTORY_FILENAME,
+    InventoryStore,
+    register_inventory_tools,
+)
 from .logging import configure_logging
 from .orchestrator import AssistantOrchestrator
 from .paths import application_paths
 from .registry import ToolRegistry
-from .sway import SwayAdapter, register_sway_tools
+from .integrations.tools.sway import SwayAdapter, register_sway_tools
 
 
 def main() -> None:

@@ -6,7 +6,7 @@ from collections.abc import Callable
 import pytest
 
 from desktop_ai_assistant.registry import ToolRegistry
-from desktop_ai_assistant.sway import (
+from desktop_ai_assistant.integrations.tools.sway import (
     SwayAdapter,
     SwayError,
     SwayWindow,
