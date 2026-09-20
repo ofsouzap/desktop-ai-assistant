@@ -50,6 +50,9 @@ review each scenario's tool sequence, arguments, normalized tool results,
 final response, and objective checks separately. Distinguish model-planning
 failures from tool/API or orchestration failures before changing code.
 
+When adding a new integration, also add behavioral evaluations that cover its
+expected tool behavior and failure cases.
+
 For development, enable error and traceback output in the REPL with:
 
 ```sh
