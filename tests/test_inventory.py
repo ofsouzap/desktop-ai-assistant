@@ -2,7 +2,7 @@ import logging
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
-from desktop_ai_assistant.integrations.tools.inventory import (
+from desktop_ai_assistant.integrations.inventory import (
     INVENTORY_FILENAME,
     InventoryStore,
     register_inventory_tools,
