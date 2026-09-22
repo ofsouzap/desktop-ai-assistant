@@ -16,6 +16,13 @@ from desktop_ai_assistant.types import FinalResponse, Message, ToolCallResponse
 
 @dataclass(frozen=True, slots=True, kw_only=True)
 class EvaluationTrace:
+    """Recorded result of running one evaluation scenario.
+
+    ``objective_checks`` contains named, machine-evaluated assertions for the
+    outcome. ``qualitative_review`` marks scenarios that also require human
+    assessment and therefore cannot be judged by those assertions alone.
+    """
+
     scenario: str
     prompt: str
     model: str
@@ -36,6 +43,14 @@ class EvaluationTrace:
 
 @dataclass(frozen=True, slots=True, kw_only=True)
 class Scenario:
+    """Inputs and objective criteria for one deterministic evaluation.
+
+    ``scripted_responses`` is the sequence returned by the scripted model as
+    the orchestrator advances through the scenario. ``checks`` receives the
+    completed :class:`TurnOutcome` and returns named boolean assertions that
+    are copied into the trace's ``objective_checks`` field.
+    """
+
     name: str
     prompt: str
     scripted_responses: Sequence[FinalResponse | ToolCallResponse]

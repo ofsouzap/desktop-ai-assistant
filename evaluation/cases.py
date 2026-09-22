@@ -15,7 +15,6 @@ from desktop_ai_assistant.integrations.inventory import (
 from desktop_ai_assistant.integrations.sway import SwayAdapter, register_sway_tools
 from desktop_ai_assistant.model import ModelBackend, ScriptedModelBackend
 from desktop_ai_assistant.registry import ToolRegistry
-from desktop_ai_assistant.orchestrator import TurnOutcome
 from desktop_ai_assistant.types import FinalResponse, ToolCall, ToolCallResponse
 
 from .framework import EvaluationTrace, Scenario, run_scenario
