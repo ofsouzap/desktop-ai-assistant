@@ -1,6 +1,20 @@
 import json
 
+import pytest
+
 from evaluation import run_scripted_evaluations
+from evaluation.__main__ import parse_arguments
+
+
+def test_evaluation_backend_is_required_and_limited() -> None:
+    assert parse_arguments(["--backend", "scripted"]).backend == "scripted"
+    assert parse_arguments(["--backend", "openrouter"]).backend == "openrouter"
+
+    with pytest.raises(SystemExit):
+        parse_arguments([])
+
+    with pytest.raises(SystemExit):
+        parse_arguments(["--backend", "unknown"])
 
 
 def test_scripted_evaluations_cover_inventory_and_sway() -> None:

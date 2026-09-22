@@ -36,11 +36,11 @@ whose `supported_parameters` contains `tools`.
 Run the deterministic inventory and mocked-Sway checks without credentials:
 
 ```sh
-python -m evaluation --scripted --output /tmp/evaluation-traces.json
+python -m evaluation --backend scripted --output /tmp/evaluation-traces.json
 ```
 
-To evaluate the configured OpenRouter model against the same scenarios, omit
-`--scripted`. The command writes complete JSON traces, including the prompt,
+To evaluate the configured OpenRouter model against the same scenarios, use
+`--backend openrouter`. The command writes complete JSON traces, including the prompt,
 conversation, tool calls, response, errors, and objective checks. A non-zero
 exit status means at least one objective check failed; qualitative `REVIEW`
 results should be inspected rather than reduced to a single score.
