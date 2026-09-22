@@ -170,12 +170,18 @@ def run_scripted_evaluations() -> list[EvaluationTrace]:
     sway_state = _MockSway()
     registry = ToolRegistry()
     register_sway_tools(
-        registry, SwayAdapter(logging.getLogger("evaluation"), runner=sway_state.run)
+        registry,
+        SwayAdapter(
+            logging.getLogger("evaluation"),
+            runner=sway_state.run,
+        ),
     )
     scenario = _sway_scenario()
     traces.append(
         run_scenario(
-            scenario, ScriptedModelBackend(scenario.scripted_responses), registry
+            scenario,
+            ScriptedModelBackend(scenario.scripted_responses),
+            registry,
         )
     )
     traces[-1].objective_checks["mock_state_updated"] = (
@@ -185,7 +191,9 @@ def run_scripted_evaluations() -> list[EvaluationTrace]:
     scenario = _qualitative_scenario()
     traces.append(
         run_scenario(
-            scenario, ScriptedModelBackend(scenario.scripted_responses), registry
+            scenario,
+            ScriptedModelBackend(scenario.scripted_responses),
+            registry,
         )
     )
     return traces

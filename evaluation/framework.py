@@ -64,12 +64,20 @@ def run_scenario(
     model: ModelBackend,
     registry: ToolRegistry,
 ) -> EvaluationTrace:
-    outcome = AssistantOrchestrator(model, registry, logging.getLogger("evaluation")).handle(
-        scenario.prompt
+    orchestrator = AssistantOrchestrator(
+        model,
+        registry,
+        logging.getLogger("evaluation"),
     )
+
+    outcome = orchestrator.handle(scenario.prompt)
+
     checks = scenario.checks(outcome)
     if scenario.expected_tool_calls is not None:
-        checks["expected_tool_calls"] = outcome.tool_calls == scenario.expected_tool_calls
+        checks["expected_tool_calls"] = (
+            outcome.tool_calls == scenario.expected_tool_calls
+        )
+
     return EvaluationTrace(
         scenario=scenario.name,
         prompt=scenario.prompt,
@@ -86,6 +94,8 @@ def run_scenario(
 def write_traces(traces: Sequence[EvaluationTrace], output: Path) -> None:
     output.parent.mkdir(parents=True, exist_ok=True)
     output.write_text(
-        json.dumps([asdict(trace) for trace in traces], default=str, indent=2, sort_keys=True),
+        json.dumps(
+            [asdict(trace) for trace in traces], default=str, indent=2, sort_keys=True
+        ),
         encoding="utf-8",
     )
