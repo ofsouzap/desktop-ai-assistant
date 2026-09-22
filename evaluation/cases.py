@@ -8,7 +8,10 @@ import subprocess
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
-from desktop_ai_assistant.integrations.inventory import InventoryStore, register_inventory_tools
+from desktop_ai_assistant.integrations.inventory import (
+    InventoryStore,
+    register_inventory_tools,
+)
 from desktop_ai_assistant.integrations.sway import SwayAdapter, register_sway_tools
 from desktop_ai_assistant.model import ModelBackend, ScriptedModelBackend
 from desktop_ai_assistant.registry import ToolRegistry
@@ -20,15 +23,17 @@ from .framework import EvaluationTrace, Scenario, run_scenario
 
 def _inventory_scenario() -> Scenario:
     return Scenario(
-        "inventory_remember_and_confirm",
-        "Remember that tea is in the kitchen, then confirm it.",
-        (
-            ToolCallResponse(ToolCall("append", "inventory_append", {"text": "tea: kitchen"})),
+        name="inventory_remember_and_confirm",
+        prompt="Remember that tea is in the kitchen, then confirm it.",
+        scripted_responses=(
+            ToolCallResponse(
+                ToolCall("append", "inventory_append", {"text": "tea: kitchen"})
+            ),
             ToolCallResponse(ToolCall("read", "inventory_read", {})),
             FinalResponse("Tea is in the kitchen."),
         ),
-        ["inventory_append", "inventory_read"],
-        lambda outcome: {
+        expected_tool_calls=["inventory_append", "inventory_read"],
+        checks=lambda outcome: {
             "final_response_mentions_tea": "tea" in outcome.response.lower(),
             "tool_sequence_is_bounded": len(outcome.tool_calls) <= 5,
         },
@@ -37,9 +42,9 @@ def _inventory_scenario() -> Scenario:
 
 def _sway_scenario() -> Scenario:
     return Scenario(
-        "sway_move_and_focus",
-        "Find Firefox and VS Code, move VS Code to Firefox's workspace, and focus it.",
-        (
+        name="sway_move_and_focus",
+        prompt="Find Firefox and VS Code, move VS Code to Firefox's workspace, and focus it.",
+        scripted_responses=(
             ToolCallResponse(ToolCall("windows", "list_windows", {})),
             ToolCallResponse(
                 ToolCall(
@@ -48,12 +53,19 @@ def _sway_scenario() -> Scenario:
                     {"window_id": 22, "workspace": "2:web"},
                 )
             ),
-            ToolCallResponse(ToolCall("workspace", "focus_workspace", {"workspace": "2:web"})),
+            ToolCallResponse(
+                ToolCall("workspace", "focus_workspace", {"workspace": "2:web"})
+            ),
             ToolCallResponse(ToolCall("focus", "focus_window", {"window_id": 22})),
             FinalResponse("VS Code was moved to Firefox's workspace and focused."),
         ),
-        ["list_windows", "move_window_to_workspace", "focus_workspace", "focus_window"],
-        lambda outcome: {
+        expected_tool_calls=[
+            "list_windows",
+            "move_window_to_workspace",
+            "focus_workspace",
+            "focus_window",
+        ],
+        checks=lambda outcome: {
             "final_response_confirms_action": "focused" in outcome.response.lower(),
             "tool_sequence_is_bounded": len(outcome.tool_calls) <= 5,
         },
@@ -62,11 +74,15 @@ def _sway_scenario() -> Scenario:
 
 def _qualitative_scenario() -> Scenario:
     return Scenario(
-        "capability_boundary_explanation",
-        "What kinds of desktop actions can you safely help with?",
-        (FinalResponse("I can use the listed inventory and constrained Sway tools."),),
-        None,
-        lambda outcome: {"final_response_is_nonempty": bool(outcome.response.strip())},
+        name="capability_boundary_explanation",
+        prompt="What kinds of desktop actions can you safely help with?",
+        scripted_responses=(
+            FinalResponse("I can use the listed inventory and constrained Sway tools."),
+        ),
+        expected_tool_calls=None,
+        checks=lambda outcome: {
+            "final_response_is_nonempty": bool(outcome.response.strip())
+        },
         qualitative_review=True,
     )
 
@@ -76,9 +92,7 @@ class _MockSway:
         self.workspace_by_window = {11: "2:web", 22: "1:code"}
         self.focused_window = 11
 
-    def run(
-        self, command: list[str], **_: object
-    ) -> subprocess.CompletedProcess[str]:
+    def run(self, command: list[str], **_: object) -> subprocess.CompletedProcess[str]:
         if command[1:] == ["-t", "get_tree"]:
             windows: list[dict[str, object]] = [
                 {
@@ -95,7 +109,12 @@ class _MockSway:
             tree = {
                 "type": "root",
                 "nodes": [
-                    {"type": "workspace", "name": workspace, "nodes": [window], "floating_nodes": []}
+                    {
+                        "type": "workspace",
+                        "name": workspace,
+                        "nodes": [window],
+                        "floating_nodes": [],
+                    }
                     for workspace in {"2:web", "1:code"}
                     for window in windows
                     if isinstance(window["id"], int)
@@ -113,7 +132,8 @@ class _MockSway:
                         {
                             "num": int(name.split(":", 1)[0]),
                             "name": name,
-                            "focused": name == self.workspace_by_window[self.focused_window],
+                            "focused": name
+                            == self.workspace_by_window[self.focused_window],
                             "visible": True,
                             "urgent": False,
                         }
@@ -137,21 +157,38 @@ def run_scripted_evaluations() -> list[EvaluationTrace]:
         registry = ToolRegistry()
         register_inventory_tools(
             registry,
-            InventoryStore(Path(directory) / "inventory.txt", logging.getLogger("evaluation")),
+            InventoryStore(
+                Path(directory) / "inventory.txt", logging.getLogger("evaluation")
+            ),
         )
         scenario = _inventory_scenario()
-        traces.append(run_scenario(scenario, ScriptedModelBackend(scenario.scripted_responses), registry))
+        traces.append(
+            run_scenario(
+                scenario, ScriptedModelBackend(scenario.scripted_responses), registry
+            )
+        )
 
     sway_state = _MockSway()
     registry = ToolRegistry()
-    register_sway_tools(registry, SwayAdapter(logging.getLogger("evaluation"), runner=sway_state.run))
+    register_sway_tools(
+        registry, SwayAdapter(logging.getLogger("evaluation"), runner=sway_state.run)
+    )
     scenario = _sway_scenario()
-    traces.append(run_scenario(scenario, ScriptedModelBackend(scenario.scripted_responses), registry))
+    traces.append(
+        run_scenario(
+            scenario, ScriptedModelBackend(scenario.scripted_responses), registry
+        )
+    )
     traces[-1].objective_checks["mock_state_updated"] = (
-        sway_state.workspace_by_window[22] == "2:web" and sway_state.focused_window == 22
+        sway_state.workspace_by_window[22] == "2:web"
+        and sway_state.focused_window == 22
     )
     scenario = _qualitative_scenario()
-    traces.append(run_scenario(scenario, ScriptedModelBackend(scenario.scripted_responses), registry))
+    traces.append(
+        run_scenario(
+            scenario, ScriptedModelBackend(scenario.scripted_responses), registry
+        )
+    )
     return traces
 
 
@@ -162,11 +199,15 @@ def run_model_evaluations(model: ModelBackend) -> list[EvaluationTrace]:
         registry = ToolRegistry()
         register_inventory_tools(
             registry,
-            InventoryStore(Path(directory) / "inventory.txt", logging.getLogger("evaluation")),
+            InventoryStore(
+                Path(directory) / "inventory.txt", logging.getLogger("evaluation")
+            ),
         )
         traces.append(run_scenario(_inventory_scenario(), model, registry))
     registry = ToolRegistry()
-    register_sway_tools(registry, SwayAdapter(logging.getLogger("evaluation"), runner=_MockSway().run))
+    register_sway_tools(
+        registry, SwayAdapter(logging.getLogger("evaluation"), runner=_MockSway().run)
+    )
     traces.append(run_scenario(_sway_scenario(), model, registry))
     traces.append(run_scenario(_qualitative_scenario(), model, registry))
     return traces

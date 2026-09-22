@@ -14,7 +14,7 @@ from desktop_ai_assistant.registry import ToolRegistry
 from desktop_ai_assistant.types import FinalResponse, Message, ToolCallResponse
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(frozen=True, slots=True, kw_only=True)
 class EvaluationTrace:
     scenario: str
     prompt: str
@@ -34,7 +34,7 @@ class EvaluationTrace:
         return json.dumps(asdict(self), default=str, indent=2, sort_keys=True)
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(frozen=True, slots=True, kw_only=True)
 class Scenario:
     name: str
     prompt: str
