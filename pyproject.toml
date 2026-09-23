@@ -22,7 +22,7 @@ desktop-ai-assistant = "desktop_ai_assistant.cli:main"
 where = ["src"]
 
 [tool.mypy]
-files = ["src", "tests"]
+files = ["src", "tests", "evaluation"]
 strict = true
 warn_unreachable = true
 show_error_codes = true

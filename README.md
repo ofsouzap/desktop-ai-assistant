@@ -9,6 +9,38 @@ window/workspace tools.
 It deliberately contains no filesystem tool, shell tool, or arbitrary Sway command
 tool. Sway actions use concrete window IDs and named workspaces.
 
+## Integrations
+
+Integrations connect the assistant to narrowly defined capabilities while keeping
+their data and side effects behind validated, registered tools. Each integration
+must have automated tests for its implementation and behavioral evaluation cases
+for the expected tool behavior and failure cases. When an integration is added or
+edited, update both its automated tests and its evaluation coverage.
+
+### Inventory
+
+The inventory integration stores UTF-8 plain text at an application-controlled
+path, with one item or note per line. It can:
+
+- read the complete inventory;
+- append one non-empty inventory entry; and
+- overwrite the complete inventory.
+
+### Sway
+
+The Sway integration uses the constrained `swaymsg` adapter and concrete window
+IDs or named workspaces. It can:
+
+- list open windows and their IDs, applications, titles, workspaces, and focus;
+- list workspaces and their focus, visibility, and urgency;
+- identify the currently focused window;
+- focus a window by ID;
+- move a window by ID to a named workspace;
+- focus a named workspace; and
+- enable or disable fullscreen for a window by ID.
+
+It does not expose arbitrary Sway command execution.
+
 ## Development
 
 Requires Python 3.11 or newer.
@@ -30,6 +62,25 @@ export OPENROUTER_MODEL="google/gemma-4-31b-it:free"
 `OPENROUTER_MODEL` defaults to `google/gemma-4-31b-it:free`. Free model
 availability changes; use the OpenRouter model catalog to select a free model
 whose `supported_parameters` contains `tools`.
+
+## Behavioral evaluations
+
+Run the deterministic inventory and mocked-Sway checks without credentials:
+
+```sh
+python -m evaluation --backend scripted --output /tmp/evaluation-traces.json
+```
+
+To evaluate the configured OpenRouter model against the same scenarios, use
+`--backend openrouter`. The command writes complete JSON traces, including the prompt,
+conversation, tool calls, response, errors, and objective checks. A non-zero
+exit status means at least one objective check failed; qualitative `REVIEW`
+results should be inspected rather than reduced to a single score.
+
+When handing a trace to a coding agent, provide the JSON file and ask it to
+review each scenario's tool sequence, arguments, normalized tool results,
+final response, and objective checks separately. Distinguish model-planning
+failures from tool/API or orchestration failures before changing code.
 
 For development, enable error and traceback output in the REPL with:
 

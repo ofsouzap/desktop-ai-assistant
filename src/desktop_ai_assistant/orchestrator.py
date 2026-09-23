@@ -16,6 +16,7 @@ class TurnOutcome:
     response: str
     tool_calls: list[str] = field(default_factory=list)
     error: str | None = None
+    messages: list[Message] = field(default_factory=list)
 
 
 class AssistantOrchestrator:
@@ -50,7 +51,7 @@ class AssistantOrchestrator:
                 if isinstance(response, FinalResponse):
                     self._messages.append(Message(MessageRole.ASSISTANT, response.content))
                     self._log_event("assistant_response", content=response.content)
-                    return TurnOutcome(response.content, calls)
+                    return TurnOutcome(response.content, calls, messages=list(self._messages))
                 else:
                     call = response.tool_call
                     calls.append(call.name)
@@ -65,7 +66,7 @@ class AssistantOrchestrator:
                     )
             message = f"Stopped after {self._maximum_steps} tool calls."
             self._log_event("step_limit_reached", limit=self._maximum_steps)
-            return TurnOutcome(message, calls, error=message)
+            return TurnOutcome(message, calls, error=message, messages=list(self._messages))
         except Exception as error:
             self._logger.exception(
                 "orchestration_failure",
@@ -80,4 +81,5 @@ class AssistantOrchestrator:
                 "The assistant encountered a recoverable error. Please try again.",
                 calls,
                 error="orchestration failure",
+                messages=list(self._messages),
             )
