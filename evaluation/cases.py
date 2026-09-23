@@ -81,16 +81,12 @@ def _sway_scenario() -> Scenario:
                     {"window_id": 22, "workspace": "2:web"},
                 )
             ),
-            ToolCallResponse(
-                ToolCall("workspace", "focus_workspace", {"workspace": "2:web"})
-            ),
             ToolCallResponse(ToolCall("focus", "focus_window", {"window_id": 22})),
             FinalResponse("VS Code was moved to Firefox's workspace and focused."),
         ),
         expected_tool_calls=[
             "list_windows",
             "move_window_to_workspace",
-            "focus_workspace",
             "focus_window",
         ],
         fixture_factory=_sway_fixture,
