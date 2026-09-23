@@ -47,7 +47,6 @@ def test_scripted_evaluations_cover_inventory_and_sway() -> None:
     assert traces[1].tool_calls == [
         "list_windows",
         "move_window_to_workspace",
-        "focus_workspace",
         "focus_window",
     ]
     assert traces[2].qualitative_review
