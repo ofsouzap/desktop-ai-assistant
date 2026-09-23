@@ -42,13 +42,33 @@ class EvaluationTrace:
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)
+class ScenarioFixture:
+    """Tools and fixture-owned state required by one evaluation scenario.
+
+    ``registry`` provides the mocked or isolated tools used during execution.
+    ``fixture_checks`` verifies that the fixture responded as expected, such
+    as whether a mock's internal state was updated. It is not for describing
+    the assistant behavior or user-visible result under evaluation; those
+    assertions belong to :attr:`Scenario.checks`.
+    """
+
+    registry: ToolRegistry
+    fixture_checks: Callable[[TurnOutcome], dict[str, bool]] = lambda outcome: {}
+
+
+@dataclass(frozen=True, slots=True, kw_only=True)
 class Scenario:
-    """Inputs and objective criteria for one deterministic evaluation.
+    """Inputs and behavioral criteria for one deterministic evaluation.
 
     ``scripted_responses`` is the sequence returned by the scripted model as
     the orchestrator advances through the scenario. ``checks`` receives the
-    completed :class:`TurnOutcome` and returns named boolean assertions that
-    are copied into the trace's ``objective_checks`` field.
+    completed :class:`TurnOutcome` and returns named assertions about the
+    assistant's behavior and user-visible result. It is not for inspecting
+    mock internals or fixture setup; those assertions belong to
+    :attr:`ScenarioFixture.fixture_checks`.
+    ``fixture_factory`` receives the evaluation run's temporary directory for
+    scenario-owned files and bundles the scenario's registry and fixture
+    state.
     """
 
     name: str
@@ -56,23 +76,25 @@ class Scenario:
     scripted_responses: Sequence[FinalResponse | ToolCallResponse]
     expected_tool_calls: list[str] | None
     checks: Callable[[TurnOutcome], dict[str, bool]]
+    fixture_factory: Callable[[Path], ScenarioFixture]
     qualitative_review: bool = False
 
 
 def run_scenario(
     scenario: Scenario,
     model: ModelBackend,
-    registry: ToolRegistry,
+    fixture: ScenarioFixture,
 ) -> EvaluationTrace:
     orchestrator = AssistantOrchestrator(
         model,
-        registry,
+        fixture.registry,
         logging.getLogger("evaluation"),
     )
 
     outcome = orchestrator.handle(scenario.prompt)
 
     checks = scenario.checks(outcome)
+    checks.update(fixture.fixture_checks(outcome))
     if scenario.expected_tool_calls is not None:
         checks["expected_tool_calls"] = (
             outcome.tool_calls == scenario.expected_tool_calls
