@@ -1,4 +1,5 @@
 import json
+import re
 
 import pytest
 
@@ -17,6 +18,19 @@ def test_evaluation_backend_is_required_and_limited() -> None:
         parse_arguments(["--backend", "unknown"])
 
 
+def test_evaluation_help_describes_exit_codes(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    with pytest.raises(SystemExit):
+        parse_arguments(["--help"])
+
+    output = re.sub(r"\s+", " ", capsys.readouterr().out)
+    assert "Exit codes:" in output
+    assert "0 for all checks passing" in output
+    assert "1 for objective failures or errors" in output
+    assert "2 when qualitative review is required" in output
+
+
 def test_scripted_evaluations_cover_inventory_and_sway() -> None:
     traces = run_scripted_evaluations()
 
@@ -25,7 +39,10 @@ def test_scripted_evaluations_cover_inventory_and_sway() -> None:
         "sway_move_and_focus",
         "capability_boundary_explanation",
     ]
-    assert all(trace.passed for trace in traces)
+    assert all(
+        (trace.passed_state in ("full_pass", "passing_but_requires_qualitative_review"))
+        for trace in traces
+    )
     assert traces[0].tool_calls == ["inventory_append", "inventory_read"]
     assert traces[1].tool_calls == [
         "list_windows",

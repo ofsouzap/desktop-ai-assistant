@@ -12,7 +12,11 @@ from .framework import write_traces
 
 def parse_arguments(argv: Sequence[str] | None = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(
-        description="Run desktop assistant behavioral evaluations."
+        description=(
+            "Run desktop assistant behavioral evaluations. "
+            "Exit codes: 0 for all checks passing, 1 for objective failures or "
+            "errors, and 2 when qualitative review is required."
+        )
     )
     parser.add_argument(
         "--backend",
@@ -45,10 +49,30 @@ def main(argv: Sequence[str] | None = None) -> int:
         raise ValueError(f"Unsupported backend: {arguments.backend}")
 
     write_traces(traces, arguments.output)
-    for trace in traces:
-        print(f"{trace.scenario}: {'PASS' if trace.passed else 'REVIEW'}")
 
-    return 0 if all(trace.passed for trace in traces) else 1
+    pass_count, fail_count, review_count = 0, 0, 0
+    for trace in traces:
+        match trace.passed_state:
+            case "full_pass":
+                result = "PASS"
+                pass_count += 1
+            case "failed_objective_checks" | "has_error":
+                result = "FAIL"
+                fail_count += 1
+            case "passing_but_requires_qualitative_review":
+                result = "REVIEW"
+                review_count += 1
+
+        print(f"{trace.scenario}: {result}")
+
+    if fail_count > 0:
+        return 1
+    elif review_count > 0:
+        assert fail_count == 0
+        return 2
+    else:
+        assert fail_count == review_count == 0
+        return 0
 
 
 if __name__ == "__main__":

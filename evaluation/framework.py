@@ -6,7 +6,7 @@ import json
 import logging
 from dataclasses import asdict, dataclass
 from pathlib import Path
-from typing import Callable, Sequence
+from typing import Callable, Sequence, Literal
 
 from desktop_ai_assistant.model import ModelBackend
 from desktop_ai_assistant.orchestrator import AssistantOrchestrator, TurnOutcome
@@ -35,8 +35,22 @@ class EvaluationTrace:
     qualitative_review_hint: str | None = None
 
     @property
-    def passed(self) -> bool:
-        return self.error is None and all(self.objective_checks.values())
+    def passed_state(
+        self,
+    ) -> Literal[
+        "full_pass",
+        "failed_objective_checks",
+        "has_error",
+        "passing_but_requires_qualitative_review",
+    ]:
+        if self.error is not None:
+            return "has_error"
+        elif not all(self.objective_checks.values()):
+            return "failed_objective_checks"
+        elif self.qualitative_review:
+            return "passing_but_requires_qualitative_review"
+        else:
+            return "full_pass"
 
     def as_json(self) -> str:
         return json.dumps(asdict(self), default=str, indent=2, sort_keys=True)
