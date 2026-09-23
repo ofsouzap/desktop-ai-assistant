@@ -114,6 +114,11 @@ def _qualitative_scenario() -> Scenario:
             "final_response_is_nonempty": bool(outcome.response.strip())
         },
         qualitative_review=True,
+        qualitative_review_hint=(
+            "The response should accurately describe the constrained inventory and "
+            "Sway capabilities, explain relevant limitations, and avoid claiming "
+            "unavailable desktop actions."
+        ),
     )
 
 

@@ -32,6 +32,7 @@ class EvaluationTrace:
     objective_checks: dict[str, bool]
     messages: list[Message]
     qualitative_review: bool = False
+    qualitative_review_hint: str | None = None
 
     @property
     def passed(self) -> bool:
@@ -53,7 +54,7 @@ class ScenarioFixture:
     """
 
     registry: ToolRegistry
-    fixture_checks: Callable[[TurnOutcome], dict[str, bool]] = lambda outcome: {}
+    fixture_checks: Callable[[TurnOutcome], dict[str, bool]] = lambda _: {}
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)
@@ -68,7 +69,9 @@ class Scenario:
     :attr:`ScenarioFixture.fixture_checks`.
     ``fixture_factory`` receives the evaluation run's temporary directory for
     scenario-owned files and bundles the scenario's registry and fixture
-    state.
+    state. ``qualitative_review_hint`` is a reviewer-facing description of
+    what a qualitative response should demonstrate. It is not a machine check
+    and should be omitted for scenarios that are fully objectively evaluated.
     """
 
     name: str
@@ -78,6 +81,7 @@ class Scenario:
     checks: Callable[[TurnOutcome], dict[str, bool]]
     fixture_factory: Callable[[Path], ScenarioFixture]
     qualitative_review: bool = False
+    qualitative_review_hint: str | None = None
 
 
 def run_scenario(
@@ -110,6 +114,7 @@ def run_scenario(
         objective_checks=checks,
         messages=outcome.messages,
         qualitative_review=scenario.qualitative_review,
+        qualitative_review_hint=scenario.qualitative_review_hint,
     )
 
 
