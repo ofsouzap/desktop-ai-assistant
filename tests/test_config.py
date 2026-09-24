@@ -2,7 +2,7 @@ from pathlib import Path
 
 import pytest
 
-from desktop_ai_assistant.config import load_config
+from desktop_ai_assistant.config import AssistantConfig, load_config
 
 
 def test_loads_toml_and_environment_overrides(tmp_path: Path) -> None:
@@ -32,3 +32,10 @@ def test_rejects_invalid_step_limit(tmp_path: Path) -> None:
 
     with pytest.raises(ValueError, match="at least one"):
         load_config(tmp_path, {})
+
+
+def test_validates_step_limit() -> None:
+    config = AssistantConfig(model="model", maximum_steps=0, console_logs=False)
+
+    with pytest.raises(ValueError, match="at least one"):
+        config.validate()
