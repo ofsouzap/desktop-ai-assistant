@@ -7,17 +7,24 @@ from desktop_ai_assistant.config import AssistantConfig, load_config
 
 def test_loads_toml_and_environment_overrides(tmp_path: Path) -> None:
     (tmp_path / "config.toml").write_text(
-        '[assistant]\nmodel = "file-model"\nmaximum_steps = 3\nconsole_logs = true\n',
+        """\
+[assistant]
+model = "file-model"
+maximum_steps = 3
+console_logs = true
+""",
         encoding="utf-8",
     )
 
+    environment = {
+        "OPENROUTER_MODEL": "environment-model",
+        "DESKTOP_AI_ASSISTANT_MAXIMUM_STEPS": "7",
+        "DESKTOP_AI_ASSISTANT_CONSOLE_LOGS": "false",
+    }
+
     config = load_config(
         tmp_path,
-        {
-            "OPENROUTER_MODEL": "environment-model",
-            "DESKTOP_AI_ASSISTANT_MAXIMUM_STEPS": "7",
-            "DESKTOP_AI_ASSISTANT_CONSOLE_LOGS": "false",
-        },
+        environment,
     )
 
     assert config.model == "environment-model"
@@ -27,7 +34,11 @@ def test_loads_toml_and_environment_overrides(tmp_path: Path) -> None:
 
 def test_rejects_invalid_step_limit(tmp_path: Path) -> None:
     (tmp_path / "config.toml").write_text(
-        "[assistant]\nmaximum_steps = 0\n", encoding="utf-8"
+        """\
+[assistant]
+maximum_steps = 0
+""",
+        encoding="utf-8",
     )
 
     with pytest.raises(ValueError, match="at least one"):
