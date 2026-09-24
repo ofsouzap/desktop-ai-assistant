@@ -17,6 +17,11 @@ must have automated tests for its implementation and behavioral evaluation cases
 for the expected tool behavior and failure cases. When an integration is added or
 edited, update both its automated tests and its evaluation coverage.
 
+Integrations implement the shared interface in `desktop_ai_assistant.integrations`:
+they provide `register(registry)` and an `integration_prompt` string. The prompt
+is appended to the model's system prompt only when tool descriptions need extra
+guidance; it may be empty.
+
 ### Inventory
 
 The inventory integration stores UTF-8 plain text at an application-controlled

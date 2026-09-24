@@ -11,6 +11,7 @@ from typing import Any, Callable, Mapping, Sequence
 from ..logging import log_event
 from ..registry import ArgumentSpec, ToolExecutionError, ToolRegistry
 from ..types import ToolArguments
+from . import Integration
 
 
 class SwayError(ToolExecutionError):
@@ -219,73 +220,87 @@ class SwayAdapter:
         )
 
 
-def register_sway_tools(registry: ToolRegistry, adapter: SwayAdapter) -> None:
-    """Register the fixed, structured Sway capability set."""
+class SwayIntegration(Integration):
+    """The Sway capability and its model-facing registration details."""
 
-    @registry.register(
-        "list_windows",
-        "List open windows with IDs, applications, titles, workspaces, and focus.",
-    )
-    def list_windows(arguments: ToolArguments) -> str:
-        return json.dumps([asdict(window) for window in adapter.list_windows()])
+    def __init__(self, adapter: SwayAdapter) -> None:
+        self._adapter = adapter
 
-    @registry.register(
-        "list_workspaces",
-        "List Sway workspaces and their focus, visibility, and urgency.",
-    )
-    def list_workspaces(arguments: ToolArguments) -> str:
-        return json.dumps(
-            [asdict(workspace) for workspace in adapter.list_workspaces()]
+    @property
+    def integration_prompt(self) -> str:
+        return ""
+
+    def register(self, registry: ToolRegistry) -> None:
+        """Register the fixed, structured Sway capability set."""
+
+        @registry.register(
+            "list_windows",
+            "List open windows with IDs, applications, titles, workspaces, and focus.",
         )
+        def list_windows(arguments: ToolArguments) -> str:
+            return json.dumps(
+                [asdict(window) for window in self._adapter.list_windows()]
+            )
 
-    @registry.register(
-        "get_focused_window",
-        "Return the currently focused window, or indicate that none is focused.",
-    )
-    def get_focused_window(arguments: ToolArguments) -> str:
-        window = adapter.get_focused_window()
-        return json.dumps(asdict(window) if window is not None else None)
-
-    @registry.register(
-        "focus_window",
-        "Focus a window by its concrete Sway container ID from list_windows.",
-        (ArgumentSpec("window_id", int, "Positive Sway container ID."),),
-    )
-    def focus_window(arguments: ToolArguments) -> str:
-        adapter.focus_window(int(arguments["window_id"]))
-        return "Window focused."
-
-    @registry.register(
-        "move_window_to_workspace",
-        "Move a window by ID to a named workspace.",
-        (
-            ArgumentSpec("window_id", int, "Positive Sway container ID."),
-            ArgumentSpec("workspace", str, "Workspace name."),
-        ),
-    )
-    def move_window_to_workspace(arguments: ToolArguments) -> str:
-        adapter.move_window_to_workspace(
-            int(arguments["window_id"]), str(arguments["workspace"])
+        @registry.register(
+            "list_workspaces",
+            "List Sway workspaces and their focus, visibility, and urgency.",
         )
-        return "Window moved."
+        def list_workspaces(arguments: ToolArguments) -> str:
+            return json.dumps(
+                [asdict(workspace) for workspace in self._adapter.list_workspaces()]
+            )
 
-    @registry.register(
-        "focus_workspace",
-        "Focus a named workspace.",
-        (ArgumentSpec("workspace", str, "Workspace name."),),
-    )
-    def focus_workspace(arguments: ToolArguments) -> str:
-        adapter.focus_workspace(str(arguments["workspace"]))
-        return "Workspace focused."
+        @registry.register(
+            "get_focused_window",
+            "Return the currently focused window, or indicate that none is focused.",
+        )
+        def get_focused_window(arguments: ToolArguments) -> str:
+            window = self._adapter.get_focused_window()
+            return json.dumps(asdict(window) if window is not None else None)
 
-    @registry.register(
-        "set_fullscreen",
-        "Enable or disable fullscreen for a window by its concrete Sway container ID.",
-        (
-            ArgumentSpec("window_id", int, "Positive Sway container ID."),
-            ArgumentSpec("enabled", bool, "Whether fullscreen should be enabled."),
-        ),
-    )
-    def set_fullscreen(arguments: ToolArguments) -> str:
-        adapter.set_fullscreen(int(arguments["window_id"]), bool(arguments["enabled"]))
-        return "Fullscreen updated."
+        @registry.register(
+            "focus_window",
+            "Focus a window by its concrete Sway container ID from list_windows.",
+            (ArgumentSpec("window_id", int, "Positive Sway container ID."),),
+        )
+        def focus_window(arguments: ToolArguments) -> str:
+            self._adapter.focus_window(int(arguments["window_id"]))
+            return "Window focused."
+
+        @registry.register(
+            "move_window_to_workspace",
+            "Move a window by ID to a named workspace.",
+            (
+                ArgumentSpec("window_id", int, "Positive Sway container ID."),
+                ArgumentSpec("workspace", str, "Workspace name."),
+            ),
+        )
+        def move_window_to_workspace(arguments: ToolArguments) -> str:
+            self._adapter.move_window_to_workspace(
+                int(arguments["window_id"]), str(arguments["workspace"])
+            )
+            return "Window moved."
+
+        @registry.register(
+            "focus_workspace",
+            "Focus a named workspace.",
+            (ArgumentSpec("workspace", str, "Workspace name."),),
+        )
+        def focus_workspace(arguments: ToolArguments) -> str:
+            self._adapter.focus_workspace(str(arguments["workspace"]))
+            return "Workspace focused."
+
+        @registry.register(
+            "set_fullscreen",
+            "Enable or disable fullscreen for a window by its concrete Sway container ID.",
+            (
+                ArgumentSpec("window_id", int, "Positive Sway container ID."),
+                ArgumentSpec("enabled", bool, "Whether fullscreen should be enabled."),
+            ),
+        )
+        def set_fullscreen(arguments: ToolArguments) -> str:
+            self._adapter.set_fullscreen(
+                int(arguments["window_id"]), bool(arguments["enabled"])
+            )
+            return "Fullscreen updated."
