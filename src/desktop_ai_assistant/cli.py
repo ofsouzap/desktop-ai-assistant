@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 import subprocess
 from collections.abc import Sequence
 
@@ -26,7 +27,7 @@ def main(argv: Sequence[str] | None = None) -> None:
     paths.ensure_directories()
 
     try:
-        config = load_config(paths.config)
+        config = load_config(paths.config, environment=dict(os.environ))
     except ValueError as error:
         print(f"Configuration error: {error}")
         return

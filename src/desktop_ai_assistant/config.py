@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import os
 import tomllib
 from dataclasses import dataclass
 from pathlib import Path
@@ -26,12 +25,13 @@ class AssistantConfig:
 
 
 def load_config(
-    config_directory: Path,
-    environment: Mapping[str, str] | None = None,
+    config_directory: Path, environment: Mapping[str, str] | None = None
 ) -> AssistantConfig:
     """Load config file values, overridden by environment variables."""
 
-    environment_values = os.environ if environment is None else environment
+    if environment is None:
+        environment = {}
+
     file_values: dict[str, object] = {}
 
     config_path = config_directory / CONFIG_FILENAME
@@ -54,7 +54,7 @@ def load_config(
         name_for_error_message: str | None = None,
     ) -> str:
         return _string_setting(
-            environment_values.get(environment_key),
+            environment.get(environment_key),
             file_values.get(file_key, default_value),
             name_for_error_message,
         )
@@ -67,7 +67,7 @@ def load_config(
         name_for_error_message: str | None = None,
     ) -> int:
         return _integer_setting(
-            environment_values.get(environment_key),
+            environment.get(environment_key),
             file_values.get(file_key, default_value),
             name_for_error_message,
         )
@@ -80,7 +80,7 @@ def load_config(
         name_for_error_message: str | None = None,
     ) -> bool:
         return _boolean_setting(
-            environment_values.get(environment_key),
+            environment.get(environment_key),
             file_values.get(file_key, default_value),
             name_for_error_message,
         )
