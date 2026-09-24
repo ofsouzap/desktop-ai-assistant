@@ -8,4 +8,6 @@ build/
 dist/
 *.egg-info/
 .coverage
-
+.env
+.env.*
+evaluation-traces.json
