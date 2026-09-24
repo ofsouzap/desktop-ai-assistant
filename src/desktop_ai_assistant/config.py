@@ -130,17 +130,15 @@ def _integer_setting(
     name_for_error_message = name_for_error_message or "Value"
 
     value: object = environment_value if environment_value is not None else file_value
-    if isinstance(value, bool):
-        raise ValueError(f"{name_for_error_message} must be an integer.")
-    elif isinstance(value, int):
+    if isinstance(value, int):
         return value
     elif isinstance(value, str):
         try:
             return int(value)
         except ValueError as error:
-            raise ValueError(f"{name_for_error_message} must be an integer.") from error
+            raise TypeError(f"{name_for_error_message} must be an integer.") from error
     else:
-        raise ValueError(f"{name_for_error_message} must be an integer.")
+        raise TypeError(f"{name_for_error_message} must be an integer.")
 
 
 def _boolean_setting(

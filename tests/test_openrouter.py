@@ -181,7 +181,7 @@ def test_rejects_tool_argument_type_mismatch() -> None:
         )
     )
 
-    with pytest.raises(ValueError, match="invalid type"):
+    with pytest.raises(TypeError, match="invalid type"):
         backend.next_response(
             [Message(MessageRole.USER, "count")],
             [ToolSchema("count", "Count.", (ArgumentSpec("value", int, "Value."),))],
@@ -265,8 +265,17 @@ def test_preserves_tool_calls_in_follow_up_messages() -> None:
     assert response[3].get("tool_call_id") == "call-1"
 
 
-@pytest.mark.parametrize("arguments", ["not json", "[]", '{"bad":[]}'])
-def test_rejects_invalid_tool_arguments(arguments: str) -> None:
+@pytest.mark.parametrize(
+    "arguments,expected_error_type",
+    [
+        ("not json", ValueError),
+        ("[]", ValueError),
+        ('{"bad":[]}', TypeError),
+    ],
+)
+def test_rejects_invalid_tool_arguments(
+    arguments: str, expected_error_type: type
+) -> None:
     backend = OpenRouterModelBackend(
         lambda: FakeClient(
             FakeResponse(
@@ -281,7 +290,7 @@ def test_rejects_invalid_tool_arguments(arguments: str) -> None:
         )
     )
 
-    with pytest.raises(ValueError):
+    with pytest.raises(expected_error_type):
         backend.next_response(
             [Message(MessageRole.USER, "hello")],
             [ToolSchema("tool", "Test tool.", (ArgumentSpec("bad", str, "Value."),))],
