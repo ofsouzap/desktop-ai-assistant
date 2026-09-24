@@ -4,16 +4,13 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "desktop-ai-assistant"
-version = "0.1.0"
+version = "1.1.0"
 description = "A constrained, typed desktop assistant foundation."
 readme = "README.md"
 requires-python = ">=3.11"
 license = { file = "LICENSE" }
 authors = [{ name = "desktop-ai-assistant contributors" }]
-dependencies = [
-    "click>=8.5.0",
-    "openai==3.14.0",
-]
+dependencies = ["click>=8.5.0", "openai==3.14.0"]
 
 [project.optional-dependencies]
 dev = ["mypy==2.3.1", "pytest==9.1.1", "ruff==0.16.7", "pip>=26.2.1"]
