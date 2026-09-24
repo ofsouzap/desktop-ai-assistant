@@ -2,5 +2,5 @@
 
 check:
 	uv run mypy . && \
-	uv run pytest . && \
-	uv run ruff check
+	uv run ruff check && \
+	uv run pytest .
