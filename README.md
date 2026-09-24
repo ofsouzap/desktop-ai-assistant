@@ -57,17 +57,18 @@ uv run mypy .
 ```
 
 For a regular install, use `python -m pip install .` (or an editable install
-with `python -m pip install -e .`). Set an OpenRouter API key and optionally
-choose a currently available free model that supports tools:
+with `python -m pip install -e .`). The REPL requires an OpenRouter API key and
+a model that supports tools:
 
 ```sh
 export OPENROUTER_API_KEY="..."
-export OPENROUTER_MODEL="google/gemma-4-31b-it:free"
+export OPENROUTER_MODEL="openrouter/free"
 ```
 
-`OPENROUTER_MODEL` defaults to `openrouter/free`. Free model
-availability changes; use the OpenRouter model catalog to select a free model
-whose `supported_parameters` contains `tools`.
+`OPENROUTER_API_KEY` is read from the environment and is not stored in the TOML
+configuration. In the CLI, `OPENROUTER_MODEL` defaults to `openrouter/free`.
+Free model availability changes; use the OpenRouter model catalog to select a
+model whose `supported_parameters` contains `tools`.
 
 Runtime settings can also be stored at
 `$XDG_CONFIG_HOME/desktop-ai-assistant/config.toml`:
@@ -81,16 +82,19 @@ console_logs = false
 
 Environment variables override file values:
 `OPENROUTER_MODEL`, `DESKTOP_AI_ASSISTANT_MAXIMUM_STEPS`, and
-`DESKTOP_AI_ASSISTANT_CONSOLE_LOGS`. Invalid configuration is reported before
-the model starts. Type `quit` or `exit` in the REPL to leave; each turn prints
-the tools used and keeps running after recoverable tool or model errors.
+`DESKTOP_AI_ASSISTANT_CONSOLE_LOGS`. `maximum_steps` must be at least one;
+`console_logs` accepts TOML booleans or the environment values `0`, `1`,
+`false`, `true`, `no`, `yes`, `off`, and `on`. Invalid configuration is
+reported before the model starts. Type `quit` or `exit` in the REPL to leave;
+each turn prints the tools used and keeps running after recoverable tool or
+model errors.
 
 ## Behavioral evaluations
 
 Run the deterministic inventory and mocked-Sway checks without credentials:
 
 ```sh
-python -m evaluation --backend scripted --output /tmp/evaluation-traces.json
+uv run python -m evaluation --backend scripted --output /tmp/evaluation-traces.json
 ```
 
 To evaluate the configured OpenRouter model against the same scenarios, use
@@ -117,6 +121,10 @@ desktop-ai-assistant
 The REPL uses OpenRouter only for inference and native tool-call generation. It
 does not provide the model a local shell, filesystem, arbitrary Sway command, or
 agent runtime. The REPL keeps an in-memory conversation for its process lifetime.
+The inventory is stored at
+`$XDG_DATA_HOME/desktop-ai-assistant/inventory.txt` (or the standard XDG
+fallback). Sway tools require the `swaymsg` executable and a reachable Sway
+session.
 Logs are written as JSON Lines under
 `$XDG_STATE_HOME/desktop-ai-assistant/logs` (or the standard XDG fallback).
 
