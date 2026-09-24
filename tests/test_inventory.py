@@ -5,7 +5,7 @@ from tempfile import TemporaryDirectory
 from desktop_ai_assistant.integrations.inventory import (
     INVENTORY_FILENAME,
     InventoryStore,
-    register_inventory_tools,
+    InventoryIntegration,
 )
 from desktop_ai_assistant.registry import ToolRegistry
 from desktop_ai_assistant.types import ToolCall
@@ -51,7 +51,7 @@ def test_rejects_multiline_entry() -> None:
     with TemporaryDirectory() as directory:
         store = make_store(Path(directory) / INVENTORY_FILENAME)
         registry = ToolRegistry()
-        register_inventory_tools(registry, store)
+        InventoryIntegration(store).register(registry)
         multiline = registry.dispatch(
             ToolCall("1", "inventory_append", {"text": "one\ntwo"})
         )
@@ -63,7 +63,7 @@ def test_registered_tools_expose_format_instructions_and_persist() -> None:
     with TemporaryDirectory() as directory:
         store = make_store(Path(directory) / INVENTORY_FILENAME)
         registry = ToolRegistry()
-        register_inventory_tools(registry, store)
+        InventoryIntegration(store).register(registry)
         schemas = {schema.name: schema for schema in registry.schemas()}
         append = registry.dispatch(ToolCall("1", "inventory_append", {"text": "tea"}))
         read = registry.dispatch(ToolCall("2", "inventory_read", {}))

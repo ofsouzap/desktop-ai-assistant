@@ -8,6 +8,7 @@ from pathlib import Path
 from ..logging import log_event
 from ..registry import ArgumentSpec, ToolExecutionError, ToolRegistry
 from ..types import ToolArguments
+from . import Integration
 
 INVENTORY_FILENAME = "inventory.txt"
 
@@ -83,27 +84,37 @@ class InventoryStore:
             raise ToolExecutionError("Inventory entries must be one non-empty line.")
 
 
-def register_inventory_tools(registry: ToolRegistry, store: InventoryStore) -> None:
-    """Register the complete model-facing inventory capability."""
+class InventoryIntegration(Integration):
+    """The inventory capability and its model-facing registration details."""
 
-    @registry.register("inventory_read", _READ_DESCRIPTION)
-    def inventory_read(arguments: ToolArguments) -> str:
-        return store.read()
+    def __init__(self, store: InventoryStore) -> None:
+        self._store = store
 
-    @registry.register(
-        "inventory_append",
-        _APPEND_DESCRIPTION,
-        (ArgumentSpec("text", str, "One non-empty inventory line."),),
-    )
-    def inventory_append(arguments: ToolArguments) -> str:
-        store.append(str(arguments["text"]))
-        return "Inventory entry appended."
+    @property
+    def integration_prompt(self) -> str:
+        return ""
 
-    @registry.register(
-        "inventory_overwrite",
-        _OVERWRITE_DESCRIPTION,
-        (ArgumentSpec("text", str, "Complete replacement inventory text."),),
-    )
-    def inventory_overwrite(arguments: ToolArguments) -> str:
-        store.overwrite(str(arguments["text"]))
-        return "Inventory replaced."
+    def register(self, registry: ToolRegistry) -> None:
+        """Register the complete model-facing inventory capability."""
+
+        @registry.register("inventory_read", _READ_DESCRIPTION)
+        def inventory_read(arguments: ToolArguments) -> str:
+            return self._store.read()
+
+        @registry.register(
+            "inventory_append",
+            _APPEND_DESCRIPTION,
+            (ArgumentSpec("text", str, "One non-empty inventory line."),),
+        )
+        def inventory_append(arguments: ToolArguments) -> str:
+            self._store.append(str(arguments["text"]))
+            return "Inventory entry appended."
+
+        @registry.register(
+            "inventory_overwrite",
+            _OVERWRITE_DESCRIPTION,
+            (ArgumentSpec("text", str, "Complete replacement inventory text."),),
+        )
+        def inventory_overwrite(arguments: ToolArguments) -> str:
+            self._store.overwrite(str(arguments["text"]))
+            return "Inventory replaced."

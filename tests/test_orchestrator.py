@@ -4,12 +4,17 @@ from tempfile import TemporaryDirectory
 
 from desktop_ai_assistant.integrations.inventory import (
     InventoryStore,
-    register_inventory_tools,
+    InventoryIntegration,
 )
 from desktop_ai_assistant.model import ScriptedModelBackend
 from desktop_ai_assistant.orchestrator import AssistantOrchestrator
 from desktop_ai_assistant.registry import ToolRegistry
-from desktop_ai_assistant.types import FinalResponse, ToolArguments, ToolCall, ToolCallResponse
+from desktop_ai_assistant.types import (
+    FinalResponse,
+    ToolArguments,
+    ToolCall,
+    ToolCallResponse,
+)
 
 
 def make_assistant(
@@ -23,7 +28,10 @@ def make_assistant(
         return "pong"
 
     return AssistantOrchestrator(
-        ScriptedModelBackend(responses), registry, logging.getLogger("test"), maximum_steps
+        ScriptedModelBackend(responses),
+        registry,
+        logging.getLogger("test"),
+        maximum_steps,
     )
 
 
@@ -65,13 +73,15 @@ def test_scripted_model_exercises_inventory_flow() -> None:
     with TemporaryDirectory() as directory:
         registry = ToolRegistry()
         inventory_path = Path(directory) / "inventory.txt"
-        register_inventory_tools(
-            registry, InventoryStore(inventory_path, logging.getLogger("test"))
-        )
+        InventoryIntegration(
+            InventoryStore(inventory_path, logging.getLogger("test"))
+        ).register(registry)
         assistant = AssistantOrchestrator(
             ScriptedModelBackend(
                 [
-                    ToolCallResponse(ToolCall("append", "inventory_append", {"text": "tea"})),
+                    ToolCallResponse(
+                        ToolCall("append", "inventory_append", {"text": "tea"})
+                    ),
                     ToolCallResponse(ToolCall("read", "inventory_read", {})),
                     FinalResponse("Tea is in the inventory."),
                 ]
