@@ -7,8 +7,13 @@ from collections.abc import Mapping
 from dataclasses import dataclass
 from pathlib import Path
 
+from .config_defaults import (
+    DEFAULT_CONSOLE_LOGS,
+    DEFAULT_MAXIMUM_STEPS,
+    DEFAULT_MODEL,
+)
+
 CONFIG_FILENAME = "config.toml"
-DEFAULT_MAXIMUM_STEPS = 5
 
 
 @dataclass(frozen=True, slots=True)
@@ -87,7 +92,7 @@ def load_config(
         model=string(
             environment_key="OPENROUTER_MODEL",
             file_key="model",
-            default_value="openrouter/free",
+            default_value=DEFAULT_MODEL,
             name_for_error_message="model",
         ),
         maximum_steps=integer(
@@ -99,7 +104,7 @@ def load_config(
         console_logs=boolean(
             environment_key="DESKTOP_AI_ASSISTANT_CONSOLE_LOGS",
             file_key="console_logs",
-            default_value=False,
+            default_value=DEFAULT_CONSOLE_LOGS,
             name_for_error_message="console_logs",
         ),
     )
