@@ -2,12 +2,14 @@ import logging
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
+import pytest
+
 from desktop_ai_assistant.integrations.inventory import (
     INVENTORY_FILENAME,
-    InventoryStore,
     InventoryIntegration,
+    InventoryStore,
 )
-from desktop_ai_assistant.registry import ToolRegistry
+from desktop_ai_assistant.registry import ToolExecutionError, ToolRegistry
 from desktop_ai_assistant.types import ToolCall
 
 
@@ -47,16 +49,28 @@ def test_accepts_large_inventory_entries_and_content() -> None:
         assert store.read() == large_text
 
 
-def test_rejects_multiline_entry() -> None:
+@pytest.mark.parametrize(
+    ("text", "message"),
+    (
+        ("", "must not be empty"),
+        ("one\ntwo", "must not contain newlines"),
+        ("one\rtwo", "must not contain carriage returns"),
+        ("safe\x00unsafe", "must not contain null bytes"),
+    ),
+)
+def test_rejects_invalid_entry(text: str, message: str) -> None:
     with TemporaryDirectory() as directory:
         store = make_store(Path(directory) / INVENTORY_FILENAME)
-        registry = ToolRegistry()
-        InventoryIntegration(store).register(registry)
-        multiline = registry.dispatch(
-            ToolCall("1", "inventory_append", {"text": "one\ntwo"})
-        )
-        assert multiline.is_error
+        with pytest.raises(ToolExecutionError, match=message):
+            store.append(text)
         assert store.read() == ""
+
+
+def test_rejects_null_bytes_in_inventory_text() -> None:
+    with TemporaryDirectory() as directory:
+        store = make_store(Path(directory) / INVENTORY_FILENAME)
+        with pytest.raises(ToolExecutionError, match="null bytes"):
+            store.overwrite("safe\x00unsafe")
 
 
 def test_registered_tools_expose_format_instructions_and_persist() -> None:

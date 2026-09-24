@@ -3,8 +3,8 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 
 from desktop_ai_assistant.integrations.inventory import (
-    InventoryStore,
     InventoryIntegration,
+    InventoryStore,
 )
 from desktop_ai_assistant.model import ScriptedModelBackend
 from desktop_ai_assistant.orchestrator import AssistantOrchestrator

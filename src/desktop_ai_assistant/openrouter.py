@@ -23,7 +23,7 @@ from .types import (
 DEFAULT_MODEL = "google/gemma-4-31b-it:free"
 OPENROUTER_BASE_URL = "https://openrouter.ai/api/v1"
 _JSON_SCHEMA_TYPES: dict[
-    type[str] | type[int] | type[bool], Literal["string", "integer", "boolean"]
+    type[str | int | bool], Literal["string", "integer", "boolean"]
 ] = {
     str: "string",
     int: "integer",
@@ -301,7 +301,7 @@ class OpenRouterModelBackend:
             typed_arguments: dict[str, Primitive] = {}
             for key, value in arguments.items():
                 if not isinstance(key, str):
-                    raise ValueError(
+                    raise TypeError(
                         "OpenRouter tool call arguments have invalid values."
                     )
 
@@ -316,11 +316,11 @@ class OpenRouterModelBackend:
                     value = int(value)
 
                 if not isinstance(value, (str, int, bool)):
-                    raise ValueError(
+                    raise TypeError(
                         "OpenRouter tool call arguments have invalid values."
                     )
                 if type(value) is not specification.kind:
-                    raise ValueError(
+                    raise TypeError(
                         f"OpenRouter tool argument {key} has an invalid type."
                     )
 

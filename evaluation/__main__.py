@@ -3,8 +3,8 @@
 from __future__ import annotations
 
 import argparse
+from collections.abc import Sequence
 from pathlib import Path
-from typing import Sequence
 
 from .cases import run_model_evaluations, run_scripted_evaluations
 from .framework import write_traces

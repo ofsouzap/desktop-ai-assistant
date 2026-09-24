@@ -3,7 +3,8 @@
 from __future__ import annotations
 
 from collections import deque
-from typing import Protocol, Sequence
+from collections.abc import Sequence
+from typing import Protocol
 
 from .registry import ToolSchema
 from .types import FinalResponse, Message, ModelResponse

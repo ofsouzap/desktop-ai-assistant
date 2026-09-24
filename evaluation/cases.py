@@ -5,13 +5,13 @@ from __future__ import annotations
 import json
 import logging
 import subprocess
+from collections.abc import Callable
 from pathlib import Path
 from tempfile import TemporaryDirectory
-from typing import Callable
 
 from desktop_ai_assistant.integrations.inventory import (
-    InventoryStore,
     InventoryIntegration,
+    InventoryStore,
 )
 from desktop_ai_assistant.integrations.sway import SwayAdapter, SwayIntegration
 from desktop_ai_assistant.model import ModelBackend, ScriptedModelBackend
@@ -145,7 +145,7 @@ class _MockSway:
                             "nodes": [window],
                             "floating_nodes": [],
                         }
-                        for workspace in {"2:web", "1:code"}
+                        for workspace in ("2:web", "1:code")
                         for window in windows
                         if isinstance(window["id"], int)
                         and self.workspace_by_window[window["id"]] == workspace

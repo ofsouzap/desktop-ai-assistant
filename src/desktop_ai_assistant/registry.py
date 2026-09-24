@@ -2,8 +2,9 @@
 
 from __future__ import annotations
 
+from collections.abc import Callable, Sequence
 from dataclasses import dataclass
-from typing import Callable, Mapping, Protocol, Sequence
+from typing import Protocol
 
 from .types import Primitive, ToolArguments, ToolCall, ToolResult
 
@@ -19,7 +20,7 @@ class ToolExecutionError(RuntimeError):
 @dataclass(frozen=True, slots=True)
 class ArgumentSpec:
     name: str
-    kind: type[str] | type[int] | type[bool]
+    kind: type[str | int | bool]
     description: str
     required: bool = True
 
@@ -72,7 +73,7 @@ class ToolRegistry:
             return ToolResult(call.id, tool.handler(validated))
         except (ToolValidationError, ToolExecutionError) as error:
             return ToolResult(call.id, str(error), is_error=True)
-        except Exception:
+        except Exception:  # noqa: BLE001 - tool handlers are an isolation boundary
             return ToolResult(call.id, "Tool failed unexpectedly.", is_error=True)
 
     @staticmethod

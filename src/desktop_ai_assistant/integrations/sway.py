@@ -5,8 +5,9 @@ from __future__ import annotations
 import json
 import logging
 import subprocess
+from collections.abc import Callable, Mapping, Sequence
 from dataclasses import asdict, dataclass
-from typing import Any, Callable, Mapping, Sequence
+from typing import Any
 
 from ..logging import log_event
 from ..registry import ArgumentSpec, ToolExecutionError, ToolRegistry
@@ -64,17 +65,34 @@ class SwayAdapter:
         if not isinstance(result, list):
             raise SwayError("Sway returned an invalid workspace list.")
         try:
-            return [
-                SwayWorkspace(
-                    num=int(item["num"]),
-                    name=str(item["name"]),
-                    focused=bool(item["focused"]),
-                    visible=bool(item["visible"]),
-                    urgent=bool(item["urgent"]),
+            workspaces: list[SwayWorkspace] = []
+            for item in result:
+                if not isinstance(item, Mapping):
+                    raise TypeError("Workspace entry must be an object.")
+
+                fields_to_check = (
+                    ("num", int),
+                    ("name", str),
+                    ("focused", bool),
+                    ("visible", bool),
+                    ("urgent", bool),
                 )
-                for item in result
-                if isinstance(item, Mapping)
-            ]
+                for field, field_type in fields_to_check:
+                    if type(item.get(field)) is not field_type:
+                        raise TypeError(
+                            f"Workspace {field} value must be a {field_type.__name__}."
+                        )
+
+                workspaces.append(
+                    SwayWorkspace(
+                        num=int(item["num"]),
+                        name=str(item["name"]),
+                        focused=bool(item["focused"]),
+                        visible=bool(item["visible"]),
+                        urgent=bool(item["urgent"]),
+                    )
+                )
+            return workspaces
         except (KeyError, TypeError, ValueError) as error:
             raise SwayError("Sway returned an invalid workspace.") from error
 

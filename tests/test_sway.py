@@ -5,14 +5,14 @@ from collections.abc import Callable
 
 import pytest
 
-from desktop_ai_assistant.registry import ToolRegistry
 from desktop_ai_assistant.integrations.sway import (
     SwayAdapter,
     SwayError,
+    SwayIntegration,
     SwayWindow,
     SwayWorkspace,
-    SwayIntegration,
 )
+from desktop_ai_assistant.registry import ToolRegistry
 from desktop_ai_assistant.types import ToolCall
 
 
@@ -106,6 +106,26 @@ def test_normalizes_tree_windows_and_workspaces() -> None:
     assert not responses
 
 
+def test_accepts_valid_workspace() -> None:
+    adapter = SwayAdapter(
+        logging.getLogger("test"),
+        runner=lambda *args, **kwargs: completed(
+            '[{"num": 1, "name": "1:web", "focused": true, '
+            '"visible": true, "urgent": false}]'
+        ),
+    )
+
+    assert adapter.list_workspaces() == [
+        SwayWorkspace(
+            num=1,
+            name="1:web",
+            focused=True,
+            visible=True,
+            urgent=False,
+        )
+    ]
+
+
 def test_constructs_safe_write_commands() -> None:
     responses = [
         (["swaymsg", "[con_id=42] focus"], completed()),
@@ -148,6 +168,52 @@ def test_normalizes_subprocess_and_json_failures() -> None:
     )
     with pytest.raises(SwayError, match="invalid JSON"):
         invalid.list_workspaces()
+
+    invalid_workspace = SwayAdapter(
+        logging.getLogger("test"),
+        runner=lambda *args, **kwargs: completed(
+            '[{"num": 1, "name": "1", "focused": "false", '
+            '"visible": true, "urgent": false}]'
+        ),
+    )
+    with pytest.raises(SwayError, match="invalid workspace"):
+        invalid_workspace.list_workspaces()
+
+
+@pytest.mark.parametrize(
+    ("field", "value", "field_type"),
+    [
+        ("num", "1", "int"),
+        ("name", 1, "str"),
+        ("focused", "true", "bool"),
+        ("visible", 1, "bool"),
+        ("urgent", None, "bool"),
+    ],
+)
+def test_reports_invalid_workspace_field(
+    field: str, value: object, field_type: str
+) -> None:
+    workspace = {
+        "num": 1,
+        "name": "1",
+        "focused": False,
+        "visible": True,
+        "urgent": False,
+    }
+    workspace[field] = value
+
+    adapter = SwayAdapter(
+        logging.getLogger("test"),
+        runner=lambda *args, **kwargs: completed(json.dumps([workspace])),
+    )
+
+    with pytest.raises(SwayError, match="invalid workspace") as error_info:
+        adapter.list_workspaces()
+
+    assert error_info.value.__cause__ is not None
+    assert str(error_info.value.__cause__) == (
+        f"Workspace {field} value must be a {field_type}."
+    )
 
 
 def test_registers_all_sway_tools_and_dispatches_validation() -> None:
