@@ -65,7 +65,7 @@ export OPENROUTER_API_KEY="..."
 export OPENROUTER_MODEL="google/gemma-4-31b-it:free"
 ```
 
-`OPENROUTER_MODEL` defaults to `google/gemma-4-31b-it:free`. Free model
+`OPENROUTER_MODEL` defaults to `openrouter/free`. Free model
 availability changes; use the OpenRouter model catalog to select a free model
 whose `supported_parameters` contains `tools`.
 
