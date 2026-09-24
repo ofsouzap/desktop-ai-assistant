@@ -2,11 +2,12 @@
 
 from __future__ import annotations
 
+import logging
 import os
 import subprocess
-from collections.abc import Sequence
+import sys
 
-from .config import load_config
+from .config import AssistantConfig, load_config
 from .integrations import Integration
 from .integrations.inventory import (
     INVENTORY_FILENAME,
@@ -17,28 +18,21 @@ from .integrations.sway import SwayAdapter, SwayIntegration
 from .logging import configure_logging, log_event
 from .openrouter import OpenRouterModelBackend
 from .orchestrator import AssistantOrchestrator
-from .paths import application_paths
+from .paths import ApplicationPaths, application_paths
 from .registry import ToolRegistry
 
 
-def main(argv: Sequence[str] | None = None) -> None:
-    paths = application_paths()
-    paths.ensure_directories()
-
+def _load_assistant_config(paths: ApplicationPaths) -> AssistantConfig | None:
     try:
-        config = load_config(paths.config, environment=dict(os.environ))
-    except ValueError as error:
+        return load_config(paths.config, environment=dict(os.environ))
+    except (ValueError, TypeError) as error:
         print(f"Configuration error: {error}")
-        return
-    logger = configure_logging(paths.state / "logs", console=config.console_logs)
-    del argv  # Reserved for future CLI flags without changing the entry point.
-    log_event(
-        logger,
-        "startup_complete",
-        model=config.model,
-        maximum_steps=config.maximum_steps,
-    )
+        return None
 
+
+def _build_assistant(
+    paths: ApplicationPaths, config: AssistantConfig, logger: logging.Logger
+) -> AssistantOrchestrator | None:
     registry = ToolRegistry()
     integrations: list[Integration] = [
         InventoryIntegration(InventoryStore(paths.data / INVENTORY_FILENAME, logger)),
@@ -59,11 +53,13 @@ def main(argv: Sequence[str] | None = None) -> None:
         )
     except ValueError as error:
         print(f"Error: {error}")
-        return
-    assistant = AssistantOrchestrator(
+        return None
+    return AssistantOrchestrator(
         model, registry, logger, maximum_steps=config.maximum_steps
     )
 
+
+def _run_repl(assistant: AssistantOrchestrator) -> int:
     print("Desktop AI Assistant. Type 'quit' or 'exit' to leave.")
 
     while True:
@@ -71,23 +67,44 @@ def main(argv: Sequence[str] | None = None) -> None:
             text = input("> ").strip()
         except (EOFError, KeyboardInterrupt):
             print()
-            return
+            return 0
 
         if text.lower().strip() in {"quit", "exit"}:
-            return
-        if not text:
+            return 0
+        elif not text:
             continue
-        outcome = assistant.handle(text)
+        else:
+            outcome = assistant.handle(text)
+            if outcome.tool_calls:
+                print(f"[tools: {', '.join(outcome.tool_calls)}]")
+            if outcome.error is not None:
+                print(f"[error] {outcome.error}")
+            if outcome.response:
+                print(outcome.response)
 
-        if outcome.tool_calls:
-            print(f"[tools: {', '.join(outcome.tool_calls)}]")
 
-        if outcome.error is not None:
-            print(f"[error] {outcome.error}")
+def main() -> int:
+    paths = application_paths()
+    paths.ensure_directories()
 
-        if outcome.response:
-            print(outcome.response)
+    config = _load_assistant_config(paths)
+    if config is None:
+        return 1
+    logger = configure_logging(paths.state / "logs", console=config.console_logs)
+
+    log_event(
+        logger,
+        "startup_complete",
+        model=config.model,
+        maximum_steps=config.maximum_steps,
+    )
+
+    assistant = _build_assistant(paths, config, logger)
+    if assistant is None:
+        return 1
+
+    return _run_repl(assistant)
 
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())
