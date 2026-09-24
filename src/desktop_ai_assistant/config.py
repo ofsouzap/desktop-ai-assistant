@@ -135,7 +135,8 @@ def _integer_setting(
     name_for_error_message = name_for_error_message or "Value"
 
     value: object = environment_value if environment_value is not None else file_value
-    if isinstance(value, int):
+    # bool is an int subclass, but it is not a valid step count, so we have to make sure it is not a bool.
+    if isinstance(value, int) and not isinstance(value, bool):
         return value
     elif isinstance(value, str):
         try:
