@@ -5,7 +5,8 @@ from __future__ import annotations
 import logging
 import os
 import subprocess
-import sys
+
+import click
 
 from .config import AssistantConfig, load_config
 from .integrations import Integration
@@ -83,13 +84,19 @@ def _run_repl(assistant: AssistantOrchestrator) -> int:
                 print(outcome.response)
 
 
-def main() -> int:
+@click.command()
+def main() -> None:
+    """Run the constrained Linux/Sway desktop assistant REPL.
+
+    The assistant uses OpenRouter for inference and various integrations. It does not provide shell,
+    filesystem, or arbitrary Sway command execution.
+    """
     paths = application_paths()
     paths.ensure_directories()
 
     config = _load_assistant_config(paths)
     if config is None:
-        return 1
+        raise click.exceptions.Exit(1)
     logger = configure_logging(paths.state / "logs", console=config.console_logs)
 
     log_event(
@@ -101,10 +108,10 @@ def main() -> int:
 
     assistant = _build_assistant(paths, config, logger)
     if assistant is None:
-        return 1
+        raise click.exceptions.Exit(1)
 
-    return _run_repl(assistant)
+    raise click.exceptions.Exit(_run_repl(assistant))
 
 
 if __name__ == "__main__":
-    sys.exit(main())
+    main()
