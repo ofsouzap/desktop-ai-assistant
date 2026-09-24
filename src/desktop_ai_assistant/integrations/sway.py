@@ -68,21 +68,28 @@ class SwayAdapter:
             workspaces: list[SwayWorkspace] = []
             for item in result:
                 if not isinstance(item, Mapping):
-                    raise TypeError
-                if not all(
-                    type(item[key]) is bool for key in ("focused", "visible", "urgent")
-                ):
-                    raise TypeError
-                focused = item["focused"]
-                visible = item["visible"]
-                urgent = item["urgent"]
+                    raise TypeError("Workspace entry must be an object.")
+
+                fields_to_check = (
+                    ("num", int),
+                    ("name", str),
+                    ("focused", bool),
+                    ("visible", bool),
+                    ("urgent", bool),
+                )
+                for field, field_type in fields_to_check:
+                    if type(item.get(field)) is not field_type:
+                        raise TypeError(
+                            f"Workspace {field} value must be a {field_type.__name__}."
+                        )
+
                 workspaces.append(
                     SwayWorkspace(
                         num=int(item["num"]),
                         name=str(item["name"]),
-                        focused=focused if isinstance(focused, bool) else False,
-                        visible=visible if isinstance(visible, bool) else False,
-                        urgent=urgent if isinstance(urgent, bool) else False,
+                        focused=bool(item["focused"]),
+                        visible=bool(item["visible"]),
+                        urgent=bool(item["urgent"]),
                     )
                 )
             return workspaces
