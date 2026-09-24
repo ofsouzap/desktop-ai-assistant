@@ -73,7 +73,7 @@ class ToolRegistry:
             return ToolResult(call.id, tool.handler(validated))
         except (ToolValidationError, ToolExecutionError) as error:
             return ToolResult(call.id, str(error), is_error=True)
-        except Exception:
+        except Exception:  # noqa: BLE001 - tool handlers are an isolation boundary
             return ToolResult(call.id, "Tool failed unexpectedly.", is_error=True)
 
     @staticmethod
