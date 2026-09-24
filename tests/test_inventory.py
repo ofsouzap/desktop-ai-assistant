@@ -6,8 +6,8 @@ import pytest
 
 from desktop_ai_assistant.integrations.inventory import (
     INVENTORY_FILENAME,
-    InventoryStore,
     InventoryIntegration,
+    InventoryStore,
 )
 from desktop_ai_assistant.registry import ToolExecutionError, ToolRegistry
 from desktop_ai_assistant.types import ToolCall

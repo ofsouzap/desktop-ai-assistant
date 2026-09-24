@@ -3,11 +3,9 @@
 from __future__ import annotations
 
 import tomllib
+from collections.abc import Mapping
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Mapping, Literal
-
-from desktop_ai_assistant import model
 
 CONFIG_FILENAME = "config.toml"
 DEFAULT_MAXIMUM_STEPS = 5

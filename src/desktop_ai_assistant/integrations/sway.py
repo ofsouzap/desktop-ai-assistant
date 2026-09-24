@@ -5,8 +5,9 @@ from __future__ import annotations
 import json
 import logging
 import subprocess
+from collections.abc import Callable, Mapping, Sequence
 from dataclasses import asdict, dataclass
-from typing import Any, Callable, Mapping, Sequence
+from typing import Any
 
 from ..logging import log_event
 from ..registry import ArgumentSpec, ToolExecutionError, ToolRegistry

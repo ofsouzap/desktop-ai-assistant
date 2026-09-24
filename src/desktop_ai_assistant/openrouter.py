@@ -23,7 +23,7 @@ from .types import (
 DEFAULT_MODEL = "google/gemma-4-31b-it:free"
 OPENROUTER_BASE_URL = "https://openrouter.ai/api/v1"
 _JSON_SCHEMA_TYPES: dict[
-    type[str] | type[int] | type[bool], Literal["string", "integer", "boolean"]
+    type[str | int | bool], Literal["string", "integer", "boolean"]
 ] = {
     str: "string",
     int: "integer",

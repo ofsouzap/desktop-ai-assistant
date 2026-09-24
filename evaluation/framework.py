@@ -4,9 +4,10 @@ from __future__ import annotations
 
 import json
 import logging
+from collections.abc import Callable, Sequence
 from dataclasses import asdict, dataclass
 from pathlib import Path
-from typing import Callable, Sequence, Literal
+from typing import Literal
 
 from desktop_ai_assistant.model import ModelBackend
 from desktop_ai_assistant.orchestrator import AssistantOrchestrator, TurnOutcome

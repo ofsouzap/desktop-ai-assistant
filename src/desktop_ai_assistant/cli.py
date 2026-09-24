@@ -7,19 +7,18 @@ import subprocess
 from collections.abc import Sequence
 
 from .config import load_config
-from .openrouter import OpenRouterModelBackend
 from .integrations import Integration
 from .integrations.inventory import (
     INVENTORY_FILENAME,
-    InventoryStore,
     InventoryIntegration,
+    InventoryStore,
 )
-from .logging import configure_logging
-from .logging import log_event
+from .integrations.sway import SwayAdapter, SwayIntegration
+from .logging import configure_logging, log_event
+from .openrouter import OpenRouterModelBackend
 from .orchestrator import AssistantOrchestrator
 from .paths import application_paths
 from .registry import ToolRegistry
-from .integrations.sway import SwayAdapter, SwayIntegration
 
 
 def main(argv: Sequence[str] | None = None) -> None:

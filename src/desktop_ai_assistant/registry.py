@@ -2,8 +2,9 @@
 
 from __future__ import annotations
 
+from collections.abc import Callable, Sequence
 from dataclasses import dataclass
-from typing import Callable, Mapping, Protocol, Sequence
+from typing import Protocol
 
 from .types import Primitive, ToolArguments, ToolCall, ToolResult
 
@@ -19,7 +20,7 @@ class ToolExecutionError(RuntimeError):
 @dataclass(frozen=True, slots=True)
 class ArgumentSpec:
     name: str
-    kind: type[str] | type[int] | type[bool]
+    kind: type[str | int | bool]
     description: str
     required: bool = True
 

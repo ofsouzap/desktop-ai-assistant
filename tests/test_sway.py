@@ -5,14 +5,14 @@ from collections.abc import Callable
 
 import pytest
 
-from desktop_ai_assistant.registry import ToolRegistry
 from desktop_ai_assistant.integrations.sway import (
     SwayAdapter,
     SwayError,
+    SwayIntegration,
     SwayWindow,
     SwayWorkspace,
-    SwayIntegration,
 )
+from desktop_ai_assistant.registry import ToolRegistry
 from desktop_ai_assistant.types import ToolCall
 
 
