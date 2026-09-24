@@ -59,6 +59,13 @@ def test_rejects_multiline_entry() -> None:
         assert store.read() == ""
 
 
+def test_rejects_null_bytes_in_inventory_text() -> None:
+    with TemporaryDirectory() as directory:
+        store = make_store(Path(directory) / INVENTORY_FILENAME)
+        with pytest.raises(Exception, match="null bytes"):
+            store.overwrite("safe\x00unsafe")
+
+
 def test_registered_tools_expose_format_instructions_and_persist() -> None:
     with TemporaryDirectory() as directory:
         store = make_store(Path(directory) / INVENTORY_FILENAME)

@@ -4,7 +4,9 @@ from __future__ import annotations
 
 import os
 import subprocess
+from collections.abc import Sequence
 
+from .config import load_config
 from .openrouter import OpenRouterModelBackend
 from .integrations.inventory import (
     INVENTORY_FILENAME,
@@ -18,12 +20,17 @@ from .registry import ToolRegistry
 from .integrations.sway import SwayAdapter, register_sway_tools
 
 
-def main() -> None:
+def main(argv: Sequence[str] | None = None) -> None:
     paths = application_paths()
     paths.ensure_directories()
 
-    console_logging = os.environ.get("DESKTOP_AI_ASSISTANT_CONSOLE_LOGS") == "1"
-    logger = configure_logging(paths.state / "logs", console=console_logging)
+    try:
+        config = load_config(paths.config)
+    except ValueError as error:
+        print(f"Configuration error: {error}")
+        return
+    logger = configure_logging(paths.state / "logs", console=config.console_logs)
+    del argv  # Reserved for future CLI flags without changing the entry point.
 
     registry = ToolRegistry()
     register_inventory_tools(
@@ -32,13 +39,15 @@ def main() -> None:
     register_sway_tools(registry, SwayAdapter(logger, runner=subprocess.run))
 
     try:
-        model = OpenRouterModelBackend()
+        model = OpenRouterModelBackend(model=config.model)
     except ValueError as error:
         print(f"Error: {error}")
         return
-    assistant = AssistantOrchestrator(model, registry, logger)
+    assistant = AssistantOrchestrator(
+        model, registry, logger, maximum_steps=config.maximum_steps
+    )
 
-    print("Desktop AI Assistant (OpenRouter). Type 'quit' to exit.")
+    print("Desktop AI Assistant. Type 'quit' or 'exit' to leave.")
 
     while True:
         try:
@@ -53,13 +62,14 @@ def main() -> None:
             continue
         outcome = assistant.handle(text)
 
-        for tool_name in outcome.tool_calls:
-            print(f"[tool] {tool_name}")
+        if outcome.tool_calls:
+            print(f"[tools: {', '.join(outcome.tool_calls)}]")
 
         if outcome.error is not None:
-            print(f"Error: {outcome.error}")
+            print(f"[error] {outcome.error}")
 
-        print(outcome.response)
+        if outcome.response:
+            print(outcome.response)
 
 
 if __name__ == "__main__":

@@ -62,7 +62,7 @@ class InventoryStore:
         )
 
     def overwrite(self, text: str) -> None:
-        # Future hardening: require the current content for a compare-and-swap overwrite.
+        self._validate_inventory_text(text)
         previous = self.read()
         try:
             self._path.parent.mkdir(parents=True, exist_ok=True)
@@ -79,8 +79,13 @@ class InventoryStore:
 
     @staticmethod
     def _validate_entry(text: str) -> None:
-        if not text or "\n" in text or "\r" in text:
+        if not text or "\n" in text or "\r" in text or "\x00" in text:
             raise ToolExecutionError("Inventory entries must be one non-empty line.")
+
+    @staticmethod
+    def _validate_inventory_text(text: str) -> None:
+        if "\x00" in text:
+            raise ToolExecutionError("Inventory text must not contain null bytes.")
 
 
 def register_inventory_tools(registry: ToolRegistry, store: InventoryStore) -> None:

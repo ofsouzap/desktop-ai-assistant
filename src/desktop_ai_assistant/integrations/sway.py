@@ -63,17 +63,22 @@ class SwayAdapter:
         if not isinstance(result, list):
             raise SwayError("Sway returned an invalid workspace list.")
         try:
-            return [
-                SwayWorkspace(
-                    num=int(item["num"]),
-                    name=str(item["name"]),
-                    focused=bool(item["focused"]),
-                    visible=bool(item["visible"]),
-                    urgent=bool(item["urgent"]),
+            workspaces: list[SwayWorkspace] = []
+            for item in result:
+                if not isinstance(item, Mapping):
+                    raise TypeError
+                if not all(type(item[key]) is bool for key in ("focused", "visible", "urgent")):
+                    raise TypeError
+                workspaces.append(
+                    SwayWorkspace(
+                        num=int(item["num"]),
+                        name=str(item["name"]),
+                        focused=item["focused"],
+                        visible=item["visible"],
+                        urgent=item["urgent"],
+                    )
                 )
-                for item in result
-                if isinstance(item, Mapping)
-            ]
+            return workspaces
         except (KeyError, TypeError, ValueError) as error:
             raise SwayError("Sway returned an invalid workspace.") from error
 

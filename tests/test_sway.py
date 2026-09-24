@@ -149,6 +149,16 @@ def test_normalizes_subprocess_and_json_failures() -> None:
     with pytest.raises(SwayError, match="invalid JSON"):
         invalid.list_workspaces()
 
+    invalid_workspace = SwayAdapter(
+        logging.getLogger("test"),
+        runner=lambda *args, **kwargs: completed(
+            '[{"num": 1, "name": "1", "focused": "false", '
+            '"visible": true, "urgent": false}]'
+        ),
+    )
+    with pytest.raises(SwayError, match="invalid workspace"):
+        invalid_workspace.list_workspaces()
+
 
 def test_registers_all_sway_tools_and_dispatches_validation() -> None:
     responses = [
