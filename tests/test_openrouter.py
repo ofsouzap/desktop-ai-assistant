@@ -1,10 +1,17 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+import logging
+from pathlib import Path
+from tempfile import TemporaryDirectory
 from typing import cast
 
 import pytest
 
+from desktop_ai_assistant.integrations.inventory import (
+    InventoryIntegration,
+    InventoryStore,
+)
 from desktop_ai_assistant.openrouter import OpenRouterModelBackend, _OpenRouterRequest
 from desktop_ai_assistant.registry import ArgumentSpec, ToolSchema
 from desktop_ai_assistant.types import (
@@ -85,6 +92,23 @@ def test_appends_integration_prompt_to_system_message() -> None:
     system_message = client.chat.completions.requests[0]["messages"][0]
     assert isinstance(system_message["content"], str)
     assert system_message["content"].endswith("\n\nUse IDs from tools.")
+
+
+def test_sends_inventory_integration_prompt_to_backend() -> None:
+    client = FakeClient(FakeResponse([FakeChoice(FakeMessage("Done."))]))
+    with TemporaryDirectory() as directory:
+        integration = InventoryIntegration(
+            InventoryStore(Path(directory) / "inventory.txt", logging.getLogger("test"))
+        )
+        backend = OpenRouterModelBackend(
+            lambda: client, extra_system_prompt=integration.integration_prompt
+        )
+
+        backend.next_response([Message(MessageRole.USER, "remember tea")], [])
+
+    system_message = client.chat.completions.requests[0]["messages"][0]
+    assert isinstance(system_message["content"], str)
+    assert "Inventory entries should be one line each." in system_message["content"]
 
 
 def test_rejects_empty_final_response() -> None:

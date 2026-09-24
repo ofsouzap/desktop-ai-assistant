@@ -92,7 +92,12 @@ class InventoryIntegration(Integration):
 
     @property
     def integration_prompt(self) -> str:
-        return ""
+        return (
+            "Inventory entries should be one line each. "
+            "They are free-form text, but prefer a concise format that doesn't lose information. "
+            "For example, an entry could be 'tea - in kitchen', stating the item at the start, "
+            "and any extra information afterwards."
+        )
 
     def register(self, registry: ToolRegistry) -> None:
         """Register the complete model-facing inventory capability."""
