@@ -6,16 +6,17 @@ import os
 import subprocess
 
 from .openrouter import OpenRouterModelBackend
+from .integrations import Integration
 from .integrations.inventory import (
     INVENTORY_FILENAME,
     InventoryStore,
-    register_inventory_tools,
+    InventoryIntegration,
 )
 from .logging import configure_logging
 from .orchestrator import AssistantOrchestrator
 from .paths import application_paths
 from .registry import ToolRegistry
-from .integrations.sway import SwayAdapter, register_sway_tools
+from .integrations.sway import SwayAdapter, SwayIntegration
 
 
 def main() -> None:
@@ -26,13 +27,22 @@ def main() -> None:
     logger = configure_logging(paths.state / "logs", console=console_logging)
 
     registry = ToolRegistry()
-    register_inventory_tools(
-        registry, InventoryStore(paths.data / INVENTORY_FILENAME, logger)
-    )
-    register_sway_tools(registry, SwayAdapter(logger, runner=subprocess.run))
+    integrations: list[Integration] = [
+        InventoryIntegration(InventoryStore(paths.data / INVENTORY_FILENAME, logger)),
+        SwayIntegration(SwayAdapter(logger, runner=subprocess.run)),
+    ]
+    for integration in integrations:
+        integration.register(registry)
+    integration_prompts = [
+        integration.integration_prompt
+        for integration in integrations
+        if integration.integration_prompt
+    ]
 
     try:
-        model = OpenRouterModelBackend()
+        model = OpenRouterModelBackend(
+            extra_system_prompt="\n\n".join(integration_prompts)
+        )
     except ValueError as error:
         print(f"Error: {error}")
         return

@@ -11,7 +11,7 @@ from desktop_ai_assistant.integrations.sway import (
     SwayError,
     SwayWindow,
     SwayWorkspace,
-    register_sway_tools,
+    SwayIntegration,
 )
 from desktop_ai_assistant.types import ToolCall
 
@@ -156,10 +156,9 @@ def test_registers_all_sway_tools_and_dispatches_validation() -> None:
     ]
 
     registry = ToolRegistry()
-    register_sway_tools(
-        registry,
-        SwayAdapter(logging.getLogger("test"), runner=scripted_runner(responses)),
-    )
+    SwayIntegration(
+        SwayAdapter(logging.getLogger("test"), runner=scripted_runner(responses))
+    ).register(registry)
 
     names = {schema.name for schema in registry.schemas()}
     assert names == {

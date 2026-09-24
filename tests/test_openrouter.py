@@ -1,10 +1,17 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+import logging
+from pathlib import Path
+from tempfile import TemporaryDirectory
 from typing import cast
 
 import pytest
 
+from desktop_ai_assistant.integrations.inventory import (
+    InventoryIntegration,
+    InventoryStore,
+)
 from desktop_ai_assistant.openrouter import OpenRouterModelBackend, _OpenRouterRequest
 from desktop_ai_assistant.registry import ArgumentSpec, ToolSchema
 from desktop_ai_assistant.types import (
@@ -68,10 +75,40 @@ def test_maps_final_response() -> None:
     client = FakeClient(FakeResponse([FakeChoice(FakeMessage("Done."))]))
     backend = OpenRouterModelBackend(lambda: client)
 
-    assert backend.next_response([Message(MessageRole.USER, "hello")], []) == FinalResponse(
-        "Done."
-    )
+    assert backend.next_response(
+        [Message(MessageRole.USER, "hello")], []
+    ) == FinalResponse("Done.")
     assert "tools" not in client.chat.completions.requests[0]
+
+
+def test_appends_integration_prompt_to_system_message() -> None:
+    client = FakeClient(FakeResponse([FakeChoice(FakeMessage("Done."))]))
+    backend = OpenRouterModelBackend(
+        lambda: client, extra_system_prompt="Use IDs from tools."
+    )
+
+    backend.next_response([Message(MessageRole.USER, "hello")], [])
+
+    system_message = client.chat.completions.requests[0]["messages"][0]
+    assert isinstance(system_message["content"], str)
+    assert system_message["content"].endswith("\n\nUse IDs from tools.")
+
+
+def test_sends_inventory_integration_prompt_to_backend() -> None:
+    client = FakeClient(FakeResponse([FakeChoice(FakeMessage("Done."))]))
+    with TemporaryDirectory() as directory:
+        integration = InventoryIntegration(
+            InventoryStore(Path(directory) / "inventory.txt", logging.getLogger("test"))
+        )
+        backend = OpenRouterModelBackend(
+            lambda: client, extra_system_prompt=integration.integration_prompt
+        )
+
+        backend.next_response([Message(MessageRole.USER, "remember tea")], [])
+
+    system_message = client.chat.completions.requests[0]["messages"][0]
+    assert isinstance(system_message["content"], str)
+    assert "Inventory entries should be one line each." in system_message["content"]
 
 
 def test_rejects_empty_final_response() -> None:
@@ -90,7 +127,12 @@ def test_maps_native_tool_call() -> None:
                 FakeChoice(
                     FakeMessage(
                         None,
-                        [FakeCall("call-1", FakeFunction("inventory_append", '{"text":"tea"}'))],
+                        [
+                            FakeCall(
+                                "call-1",
+                                FakeFunction("inventory_append", '{"text":"tea"}'),
+                            )
+                        ],
                     )
                 )
             ]
@@ -100,7 +142,11 @@ def test_maps_native_tool_call() -> None:
 
     response = backend.next_response(
         [Message(MessageRole.USER, "remember tea")],
-        [ToolSchema("inventory_append", "Append.", (ArgumentSpec("text", str, "Item."),))],
+        [
+            ToolSchema(
+                "inventory_append", "Append.", (ArgumentSpec("text", str, "Item."),)
+            )
+        ],
     )
 
     assert isinstance(response, ToolCallResponse)
@@ -123,7 +169,11 @@ def test_rejects_tool_argument_type_mismatch() -> None:
                     FakeChoice(
                         FakeMessage(
                             None,
-                            [FakeCall("call-1", FakeFunction("count", '{"value":true}'))],
+                            [
+                                FakeCall(
+                                    "call-1", FakeFunction("count", '{"value":true}')
+                                )
+                            ],
                         )
                     )
                 ]
@@ -146,7 +196,11 @@ def test_normalizes_integral_tool_argument_number() -> None:
                     FakeChoice(
                         FakeMessage(
                             None,
-                            [FakeCall("call-1", FakeFunction("count", '{"value":1.0}'))],
+                            [
+                                FakeCall(
+                                    "call-1", FakeFunction("count", '{"value":1.0}')
+                                )
+                            ],
                         )
                     )
                 ]
@@ -196,7 +250,8 @@ def test_preserves_tool_calls_in_follow_up_messages() -> None:
                 tool_call=ToolCall("call-1", "inventory_append", {"text": "tea"}),
             ),
             Message(MessageRole.TOOL, "Inventory entry appended.", "call-1"),
-        ]
+        ],
+        system_prompt="",
     )
 
     assert response[1]["role"] == "user"

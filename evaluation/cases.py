@@ -11,9 +11,9 @@ from typing import Callable
 
 from desktop_ai_assistant.integrations.inventory import (
     InventoryStore,
-    register_inventory_tools,
+    InventoryIntegration,
 )
-from desktop_ai_assistant.integrations.sway import SwayAdapter, register_sway_tools
+from desktop_ai_assistant.integrations.sway import SwayAdapter, SwayIntegration
 from desktop_ai_assistant.model import ModelBackend, ScriptedModelBackend
 from desktop_ai_assistant.registry import ToolRegistry
 from desktop_ai_assistant.types import FinalResponse, ToolCall, ToolCallResponse
@@ -23,10 +23,9 @@ from .framework import EvaluationTrace, Scenario, ScenarioFixture, run_scenario
 
 def _inventory_fixture(directory: Path) -> ScenarioFixture:
     registry = ToolRegistry()
-    register_inventory_tools(
-        registry,
-        InventoryStore(directory / "inventory.txt", logging.getLogger("evaluation")),
-    )
+    InventoryIntegration(
+        InventoryStore(directory / "inventory.txt", logging.getLogger("evaluation"))
+    ).register(registry)
     return ScenarioFixture(registry=registry)
 
 
@@ -53,10 +52,9 @@ def _inventory_scenario() -> Scenario:
 def _sway_fixture(directory: Path) -> ScenarioFixture:
     sway_state = _MockSway()
     registry = ToolRegistry()
-    register_sway_tools(
-        registry,
-        SwayAdapter(logging.getLogger("evaluation"), runner=sway_state.run),
-    )
+    SwayIntegration(
+        SwayAdapter(logging.getLogger("evaluation"), runner=sway_state.run)
+    ).register(registry)
     return ScenarioFixture(
         registry=registry,
         fixture_checks=lambda outcome: {
