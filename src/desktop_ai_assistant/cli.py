@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import os
 import subprocess
 from collections.abc import Sequence
 
@@ -14,6 +13,7 @@ from .integrations.inventory import (
     register_inventory_tools,
 )
 from .logging import configure_logging
+from .logging import log_event
 from .orchestrator import AssistantOrchestrator
 from .paths import application_paths
 from .registry import ToolRegistry
@@ -31,6 +31,12 @@ def main(argv: Sequence[str] | None = None) -> None:
         return
     logger = configure_logging(paths.state / "logs", console=config.console_logs)
     del argv  # Reserved for future CLI flags without changing the entry point.
+    log_event(
+        logger,
+        "startup_complete",
+        model=config.model,
+        maximum_steps=config.maximum_steps,
+    )
 
     registry = ToolRegistry()
     register_inventory_tools(

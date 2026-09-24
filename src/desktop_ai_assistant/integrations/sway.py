@@ -69,13 +69,16 @@ class SwayAdapter:
                     raise TypeError
                 if not all(type(item[key]) is bool for key in ("focused", "visible", "urgent")):
                     raise TypeError
+                focused = item["focused"]
+                visible = item["visible"]
+                urgent = item["urgent"]
                 workspaces.append(
                     SwayWorkspace(
                         num=int(item["num"]),
                         name=str(item["name"]),
-                        focused=item["focused"],
-                        visible=item["visible"],
-                        urgent=item["urgent"],
+                        focused=focused if isinstance(focused, bool) else False,
+                        visible=visible if isinstance(visible, bool) else False,
+                        urgent=urgent if isinstance(urgent, bool) else False,
                     )
                 )
             return workspaces

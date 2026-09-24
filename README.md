@@ -46,13 +46,14 @@ It does not expose arbitrary Sway command execution.
 Requires Python 3.11 or newer.
 
 ```sh
-python -m pip install -e ".[dev]"
-pytest
-mypy
+uv sync --extra dev
+uv run pytest -q
+uv run mypy .
 ```
 
-Set an OpenRouter API key and optionally choose a currently available free model
-that supports tools:
+For a regular install, use `python -m pip install .` (or an editable install
+with `python -m pip install -e .`). Set an OpenRouter API key and optionally
+choose a currently available free model that supports tools:
 
 ```sh
 export OPENROUTER_API_KEY="..."
@@ -62,6 +63,22 @@ export OPENROUTER_MODEL="google/gemma-4-31b-it:free"
 `OPENROUTER_MODEL` defaults to `google/gemma-4-31b-it:free`. Free model
 availability changes; use the OpenRouter model catalog to select a free model
 whose `supported_parameters` contains `tools`.
+
+Runtime settings can also be stored at
+`$XDG_CONFIG_HOME/desktop-ai-assistant/config.toml`:
+
+```toml
+[assistant]
+model = "google/gemma-4-31b-it:free"
+maximum_steps = 5
+console_logs = false
+```
+
+Environment variables override file values:
+`OPENROUTER_MODEL`, `DESKTOP_AI_ASSISTANT_MAXIMUM_STEPS`, and
+`DESKTOP_AI_ASSISTANT_CONSOLE_LOGS`. Invalid configuration is reported before
+the model starts. Type `quit` or `exit` in the REPL to leave; each turn prints
+the tools used and keeps running after recoverable tool or model errors.
 
 ## Behavioral evaluations
 

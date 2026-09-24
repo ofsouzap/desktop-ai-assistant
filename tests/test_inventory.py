@@ -2,12 +2,14 @@ import logging
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
+import pytest
+
 from desktop_ai_assistant.integrations.inventory import (
     INVENTORY_FILENAME,
     InventoryStore,
     register_inventory_tools,
 )
-from desktop_ai_assistant.registry import ToolRegistry
+from desktop_ai_assistant.registry import ToolExecutionError, ToolRegistry
 from desktop_ai_assistant.types import ToolCall
 
 
@@ -62,7 +64,7 @@ def test_rejects_multiline_entry() -> None:
 def test_rejects_null_bytes_in_inventory_text() -> None:
     with TemporaryDirectory() as directory:
         store = make_store(Path(directory) / INVENTORY_FILENAME)
-        with pytest.raises(Exception, match="null bytes"):
+        with pytest.raises(ToolExecutionError, match="null bytes"):
             store.overwrite("safe\x00unsafe")
 
 
