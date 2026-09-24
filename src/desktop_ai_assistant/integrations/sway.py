@@ -69,7 +69,9 @@ class SwayAdapter:
             for item in result:
                 if not isinstance(item, Mapping):
                     raise TypeError
-                if not all(type(item[key]) is bool for key in ("focused", "visible", "urgent")):
+                if not all(
+                    type(item[key]) is bool for key in ("focused", "visible", "urgent")
+                ):
                     raise TypeError
                 focused = item["focused"]
                 visible = item["visible"]
