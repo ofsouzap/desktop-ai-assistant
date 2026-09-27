@@ -150,8 +150,8 @@ def test_maps_native_tool_call() -> None:
     )
 
     assert isinstance(response, ToolCallResponse)
-    assert response.tool_call.id == "call-1"
-    assert response.tool_call.arguments == {"text": "tea"}
+    assert response.tool_calls[0].id == "call-1"
+    assert response.tool_calls[0].arguments == {"text": "tea"}
     request = client.chat.completions.requests[0]
     assert request.get("tool_choice") == "auto"
     assert request.get("parallel_tool_calls") is False
@@ -214,7 +214,7 @@ def test_normalizes_integral_tool_argument_number() -> None:
     )
 
     assert isinstance(response, ToolCallResponse)
-    assert response.tool_call.arguments == {"value": 1}
+    assert response.tool_calls[0].arguments == {"value": 1}
 
 
 def test_rejects_unknown_tool_name() -> None:
@@ -247,7 +247,7 @@ def test_preserves_tool_calls_in_follow_up_messages() -> None:
             Message(
                 MessageRole.ASSISTANT,
                 "",
-                tool_call=ToolCall("call-1", "inventory_append", {"text": "tea"}),
+                tool_calls=[ToolCall("call-1", "inventory_append", {"text": "tea"})],
             ),
             Message(MessageRole.TOOL, "Inventory entry appended.", "call-1"),
         ],
@@ -297,7 +297,7 @@ def test_rejects_invalid_tool_arguments(
         )
 
 
-def test_rejects_multiple_tool_calls() -> None:
+def test_maps_multiple_tool_calls_in_order() -> None:
     backend = OpenRouterModelBackend(
         lambda: FakeClient(
             FakeResponse(
@@ -316,8 +316,42 @@ def test_rejects_multiple_tool_calls() -> None:
         )
     )
 
-    with pytest.raises(ValueError, match="multiple tool calls"):
-        backend.next_response([Message(MessageRole.USER, "hello")], [])
+    response = backend.next_response(
+        [Message(MessageRole.USER, "hello")],
+        [ToolSchema("first", "First.", ()), ToolSchema("second", "Second.", ())],
+    )
+
+    assert isinstance(response, ToolCallResponse)
+    assert [call.name for call in response.tool_calls] == ["first", "second"]
+
+
+def test_serializes_multiple_tool_calls_in_one_assistant_message() -> None:
+    response = OpenRouterModelBackend._messages(
+        [
+            Message(
+                MessageRole.ASSISTANT,
+                "",
+                tool_calls=[
+                    ToolCall("call-1", "first", {}),
+                    ToolCall("call-2", "second", {}),
+                ],
+            )
+        ],
+        system_prompt="",
+    )
+
+    assert response[1]["tool_calls"] == [
+        {
+            "id": "call-1",
+            "type": "function",
+            "function": {"name": "first", "arguments": "{}"},
+        },
+        {
+            "id": "call-2",
+            "type": "function",
+            "function": {"name": "second", "arguments": "{}"},
+        },
+    ]
 
 
 @pytest.mark.parametrize("api_key", [None, "", "   "])

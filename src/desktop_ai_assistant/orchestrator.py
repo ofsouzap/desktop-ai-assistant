@@ -53,17 +53,22 @@ class AssistantOrchestrator:
                     self._log_event("assistant_response", content=response.content)
                     return TurnOutcome(response.content, calls, messages=list(self._messages))
                 else:
-                    call = response.tool_call
-                    calls.append(call.name)
-                    self._log_event("tool_requested", tool_call=call)
+                    tool_calls = response.tool_calls
+                    calls.extend(call.name for call in tool_calls)
+                    self._log_event("tool_requested", tool_calls=tool_calls)
                     self._messages.append(
-                        Message(MessageRole.ASSISTANT, "", tool_call=call)
+                        Message(MessageRole.ASSISTANT, "", tool_calls=tool_calls)
                     )
-                    result = self._tools.dispatch(call)
-                    self._log_event("tool_result", tool_result=result)
-                    self._messages.append(
-                        Message(MessageRole.TOOL, result.content, tool_call_id=result.tool_call_id)
-                    )
+                    for call in tool_calls:
+                        result = self._tools.dispatch(call)
+                        self._log_event("tool_result", tool_result=result)
+                        self._messages.append(
+                            Message(
+                                MessageRole.TOOL,
+                                result.content,
+                                tool_call_id=result.tool_call_id,
+                            )
+                        )
             message = f"Stopped after {self._maximum_steps} tool calls."
             self._log_event("step_limit_reached", limit=self._maximum_steps)
             return TurnOutcome(message, calls, error=message, messages=list(self._messages))

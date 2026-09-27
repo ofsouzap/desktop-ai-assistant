@@ -35,9 +35,9 @@ def _inventory_scenario() -> Scenario:
         prompt="Remember that tea is in the kitchen, then confirm it.",
         scripted_responses=(
             ToolCallResponse(
-                ToolCall("append", "inventory_append", {"text": "tea: kitchen"})
+                [ToolCall("append", "inventory_append", {"text": "tea: kitchen"})]
             ),
-            ToolCallResponse(ToolCall("read", "inventory_read", {})),
+            ToolCallResponse([ToolCall("read", "inventory_read", {})]),
             FinalResponse("Tea is in the kitchen."),
         ),
         expected_tool_calls=["inventory_append", "inventory_read"],
@@ -71,15 +71,17 @@ def _sway_scenario() -> Scenario:
         name="sway_move_and_focus",
         prompt="Find Firefox and VS Code, move VS Code to Firefox's workspace, and focus it.",
         scripted_responses=(
-            ToolCallResponse(ToolCall("windows", "list_windows", {})),
+            ToolCallResponse([ToolCall("windows", "list_windows", {})]),
             ToolCallResponse(
-                ToolCall(
-                    "move",
-                    "move_window_to_workspace",
-                    {"window_id": 22, "workspace": "2:web"},
-                )
+                [
+                    ToolCall(
+                        "move",
+                        "move_window_to_workspace",
+                        {"window_id": 22, "workspace": "2:web"},
+                    ),
+                ]
             ),
-            ToolCallResponse(ToolCall("focus", "focus_window", {"window_id": 22})),
+            ToolCallResponse([ToolCall("focus", "focus_window", {"window_id": 22})]),
             FinalResponse("VS Code was moved to Firefox's workspace and focused."),
         ),
         expected_tool_calls=[
