@@ -256,7 +256,7 @@ class OpenRouterModelBackend:
         except json.JSONDecodeError as error:
             raise ValueError("OpenRouter returned invalid tool arguments.") from error
         if not isinstance(arguments, Mapping):
-            raise ValueError("OpenRouter tool arguments must be an object.")
+            raise TypeError("OpenRouter tool arguments must be an object.")
 
         schema = next((tool for tool in tools if tool.name == function.name), None)
         if schema is None:

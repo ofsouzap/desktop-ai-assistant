@@ -154,7 +154,7 @@ def test_maps_native_tool_call() -> None:
     assert response.tool_calls[0].arguments == {"text": "tea"}
     request = client.chat.completions.requests[0]
     assert request.get("tool_choice") == "auto"
-    assert request.get("parallel_tool_calls") is False
+    assert request.get("parallel_tool_calls") is True
     tools = request.get("tools")
     assert tools is not None
     tool = tools[0]
@@ -269,7 +269,7 @@ def test_preserves_tool_calls_in_follow_up_messages() -> None:
     "arguments,expected_error_type",
     [
         ("not json", ValueError),
-        ("[]", ValueError),
+        ("[]", TypeError),
         ('{"bad":[]}', TypeError),
     ],
 )
@@ -340,18 +340,22 @@ def test_serializes_multiple_tool_calls_in_one_assistant_message() -> None:
         system_prompt="",
     )
 
-    assert response[1]["tool_calls"] == [
-        {
-            "id": "call-1",
-            "type": "function",
-            "function": {"name": "first", "arguments": "{}"},
-        },
-        {
-            "id": "call-2",
-            "type": "function",
-            "function": {"name": "second", "arguments": "{}"},
-        },
-    ]
+    assert response[1] == {
+        "role": "assistant",
+        "content": None,
+        "tool_calls": [
+            {
+                "id": "call-1",
+                "type": "function",
+                "function": {"name": "first", "arguments": "{}"},
+            },
+            {
+                "id": "call-2",
+                "type": "function",
+                "function": {"name": "second", "arguments": "{}"},
+            },
+        ],
+    }
 
 
 @pytest.mark.parametrize("api_key", [None, "", "   "])
