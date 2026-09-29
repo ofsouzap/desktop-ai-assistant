@@ -123,7 +123,7 @@ dependencies = [
     { name = "openai" },
 ]
 
-[package.optional-dependencies]
+[package.dev-dependencies]
 dev = [
     { name = "mypy" },
     { name = "pip" },
@@ -134,13 +134,16 @@ dev = [
 [package.metadata]
 requires-dist = [
     { name = "click", specifier = ">=8.0.0" },
-    { name = "mypy", marker = "extra == 'dev'", specifier = "==2.3.1" },
     { name = "openai", specifier = ">=2.0.0" },
-    { name = "pip", marker = "extra == 'dev'", specifier = ">=26.2.1" },
-    { name = "pytest", marker = "extra == 'dev'", specifier = "==9.1.1" },
-    { name = "ruff", marker = "extra == 'dev'", specifier = "==0.16.7" },
 ]
-provides-extras = ["dev"]
+
+[package.metadata.requires-dev]
+dev = [
+    { name = "mypy", specifier = "==2.3.1" },
+    { name = "pip", specifier = ">=26.2.1" },
+    { name = "pytest", specifier = "==9.1.1" },
+    { name = "ruff", specifier = "==0.16.7" },
+]
 
 [[package]]
 name = "h11"
