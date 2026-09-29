@@ -1,0 +1,3 @@
+- [ ] Handle multiple tool calls properly. Even if still just doing them in sequence
+- [ ] Option to read API key from secrets manager, start with GNOME keyring
+- [ ] More integrations, e.g. brightness control, volume control, open a URL, open a folder in files, open a path in VSCode

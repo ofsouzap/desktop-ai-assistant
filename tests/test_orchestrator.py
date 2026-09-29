@@ -38,8 +38,8 @@ def make_assistant(
 def test_runs_sequential_tool_calls_before_final_response() -> None:
     assistant = make_assistant(
         [
-            ToolCallResponse(ToolCall("one", "ping", {})),
-            ToolCallResponse(ToolCall("two", "ping", {})),
+            ToolCallResponse([ToolCall("one", "ping", {})]),
+            ToolCallResponse([ToolCall("two", "ping", {})]),
             FinalResponse("Done."),
         ]
     )
@@ -48,9 +48,25 @@ def test_runs_sequential_tool_calls_before_final_response() -> None:
     assert outcome.tool_calls == ["ping", "ping"]
 
 
+def test_runs_batched_tool_calls_in_order() -> None:
+    assistant = make_assistant(
+        [
+            ToolCallResponse(
+                [ToolCall("one", "ping", {}), ToolCall("two", "pong", {})],
+            ),
+            FinalResponse("Done."),
+        ]
+    )
+
+    outcome = assistant.handle("Do both")
+
+    assert outcome.response == "Done."
+    assert outcome.tool_calls == ["ping", "pong"]
+
+
 def test_stops_at_limit() -> None:
     assistant = make_assistant(
-        [ToolCallResponse(ToolCall(str(index), "ping", {})) for index in range(3)],
+        [ToolCallResponse([ToolCall(str(index), "ping", {})]) for index in range(3)],
         maximum_steps=2,
     )
     outcome = assistant.handle("loop")
@@ -61,7 +77,7 @@ def test_stops_at_limit() -> None:
 def test_tool_error_is_returned_to_model() -> None:
     assistant = make_assistant(
         [
-            ToolCallResponse(ToolCall("bad", "missing", {})),
+            ToolCallResponse([ToolCall("bad", "missing", {})]),
             FinalResponse("Recovered."),
         ]
     )
@@ -80,9 +96,9 @@ def test_scripted_model_exercises_inventory_flow() -> None:
             ScriptedModelBackend(
                 [
                     ToolCallResponse(
-                        ToolCall("append", "inventory_append", {"text": "tea"})
+                        [ToolCall("append", "inventory_append", {"text": "tea"})],
                     ),
-                    ToolCallResponse(ToolCall("read", "inventory_read", {})),
+                    ToolCallResponse([ToolCall("read", "inventory_read", {})]),
                     FinalResponse("Tea is in the inventory."),
                 ]
             ),

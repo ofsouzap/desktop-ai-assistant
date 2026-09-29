@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from collections.abc import Mapping
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from enum import Enum
 from typing import TypeAlias
@@ -29,7 +29,7 @@ class Message:
     role: MessageRole
     content: str
     tool_call_id: str | None = None
-    tool_call: ToolCall | None = None
+    tool_calls: Sequence[ToolCall] | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -46,7 +46,7 @@ class FinalResponse:
 
 @dataclass(frozen=True, slots=True)
 class ToolCallResponse:
-    tool_call: ToolCall
+    tool_calls: Sequence[ToolCall]
 
 
 ModelResponse: TypeAlias = FinalResponse | ToolCallResponse
