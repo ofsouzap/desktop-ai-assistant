@@ -123,9 +123,10 @@ class OpenRouterModelBackend:
             self._client = client_factory()
         else:
             api_key = os.environ.get("OPENROUTER_API_KEY")
-            if not api_key:
+            if not api_key or not api_key.strip():
                 raise ValueError(
-                    "Set OPENROUTER_API_KEY before starting the assistant."
+                    "OPENROUTER_API_KEY is missing or empty; set it before "
+                    "starting the assistant."
                 )
             self._client = cast(
                 _OpenRouterClient,

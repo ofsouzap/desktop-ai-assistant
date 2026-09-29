@@ -320,10 +320,16 @@ def test_rejects_multiple_tool_calls() -> None:
         backend.next_response([Message(MessageRole.USER, "hello")], [])
 
 
-def test_requires_api_key(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.delenv("OPENROUTER_API_KEY", raising=False)
+@pytest.mark.parametrize("api_key", [None, "", "   "])
+def test_requires_api_key(
+    monkeypatch: pytest.MonkeyPatch, api_key: str | None
+) -> None:
+    if api_key is None:
+        monkeypatch.delenv("OPENROUTER_API_KEY", raising=False)
+    else:
+        monkeypatch.setenv("OPENROUTER_API_KEY", api_key)
 
-    with pytest.raises(ValueError, match="OPENROUTER_API_KEY"):
+    with pytest.raises(ValueError, match="missing or empty"):
         OpenRouterModelBackend()
 
 
