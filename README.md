@@ -51,7 +51,7 @@ It does not expose arbitrary Sway command execution.
 Requires Python 3.11 or newer.
 
 ```sh
-uv sync --extra dev
+uv sync --dev
 uv run pytest -q
 uv run mypy .
 ```

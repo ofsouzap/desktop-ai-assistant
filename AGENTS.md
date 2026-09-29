@@ -5,7 +5,7 @@
 - Use `uv` for the project environment and dependency management.
 - Use Python 3.11 or newer.
 - Install/sync development dependencies with:
-  `uv sync --extra dev`
+  `uv sync --dev`
 - Run project commands through `uv run`; do not rely on globally installed
   Python packages.
 
