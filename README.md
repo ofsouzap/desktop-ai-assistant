@@ -66,7 +66,9 @@ export OPENROUTER_MODEL="openrouter/free"
 ```
 
 `OPENROUTER_API_KEY` is read from the environment and is not stored in the TOML
-configuration. In the CLI, `OPENROUTER_MODEL` defaults to `openrouter/free`.
+configuration. It must be a non-empty OpenRouter API key beginning with
+`sk-or-v1-`. In the CLI, `OPENROUTER_MODEL` defaults to
+`openrouter/free`.
 Free model availability changes; use the OpenRouter model catalog to select a
 model whose `supported_parameters` contains `tools`.
 

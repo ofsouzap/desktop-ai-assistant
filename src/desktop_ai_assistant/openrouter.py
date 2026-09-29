@@ -22,6 +22,7 @@ from .types import (
 
 DEFAULT_MODEL = "google/gemma-4-31b-it:free"
 OPENROUTER_BASE_URL = "https://openrouter.ai/api/v1"
+OPENROUTER_API_KEY_PREFIX = "sk-or-v1-"
 _JSON_SCHEMA_TYPES: dict[
     type[str | int | bool], Literal["string", "integer", "boolean"]
 ] = {
@@ -127,6 +128,13 @@ class OpenRouterModelBackend:
                 raise ValueError(
                     "OPENROUTER_API_KEY is missing or empty; set it before "
                     "starting the assistant."
+                )
+            if not api_key.startswith(OPENROUTER_API_KEY_PREFIX) or len(api_key) == len(
+                OPENROUTER_API_KEY_PREFIX
+            ):
+                raise ValueError(
+                    "OPENROUTER_API_KEY must be a valid OpenRouter API key "
+                    "starting with 'sk-or-v1-'."
                 )
             self._client = cast(
                 _OpenRouterClient,

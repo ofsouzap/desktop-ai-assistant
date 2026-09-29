@@ -321,15 +321,23 @@ def test_rejects_multiple_tool_calls() -> None:
 
 
 @pytest.mark.parametrize("api_key", [None, "", "   "])
-def test_requires_api_key(
-    monkeypatch: pytest.MonkeyPatch, api_key: str | None
-) -> None:
+def test_requires_api_key(monkeypatch: pytest.MonkeyPatch, api_key: str | None) -> None:
     if api_key is None:
         monkeypatch.delenv("OPENROUTER_API_KEY", raising=False)
     else:
         monkeypatch.setenv("OPENROUTER_API_KEY", api_key)
 
     with pytest.raises(ValueError, match="missing or empty"):
+        OpenRouterModelBackend()
+
+
+@pytest.mark.parametrize("api_key", ["openrouter/free", "sk-or-v1-"])
+def test_rejects_invalid_api_key_format(
+    monkeypatch: pytest.MonkeyPatch, api_key: str
+) -> None:
+    monkeypatch.setenv("OPENROUTER_API_KEY", api_key)
+
+    with pytest.raises(ValueError, match="valid OpenRouter API key"):
         OpenRouterModelBackend()
 
 
